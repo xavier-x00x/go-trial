@@ -1,0 +1,74 @@
+GET http://localhost:3050/health
+
+### Create new user
+POST http://localhost:3050/api/auth/register
+Content-Type: application/json
+
+{
+  "name"        : "Dwi Prasetyo",
+  "email"       : "dwi@example.com",
+  "username"    : "dwi",
+  "password"    : "12345678",
+  "role"        : "staff"
+}
+
+### Login to get token
+POST http://localhost:3050/api/auth/login
+Content-Type: application/json
+
+{
+  "identity"    : "dwi@example.com",
+  "password"    : "12345678"
+}
+
+### Get Profile
+GET http://localhost:3050/api/auth/me
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiMDE5ZGNmZDEtZDg3Yy03NzFhLTllMTgtNTIyYWNiMzZhZGRjIiwiZW1haWwiOiJkd2lAZXhhbXBsZS5jb20iLCJyb2xlIjoic3RhZmYiLCJ0eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzc3MzE2NzcwLCJuYmYiOjE3NzczMTU4NzAsImlhdCI6MTc3NzMxNTg3MH0.VtY7bXTI1ZBdHJkcmK_DK7AsFhZ_Gf77ax9DCKFm7iQ
+
+
+### Create Store
+POST http://localhost:3050/api/stores
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImR3aUBleGFtcGxlLmNvbSIsImV4cCI6MTc3NTM5NDI1MywiaWQiOjMsInJvbGUiOiIiLCJzdG9yZSI6IiJ9.7LjMk2mpbcuvrfgZ9B7SlzLDiiPFSu-xeuVDet_DZzU
+Content-Type: application/json
+
+{
+  "code": "store-099",
+  "name": "Store 099",
+  "email": "store099@example.com"
+}
+
+
+### Check Role
+POST http://localhost:3050/api/roles/authorization
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im5vdG9AZGV2LmNvbSIsImV4cCI6MTc3NTQ3NDE5OCwiaWQiOjQsInJvbGUiOiJwcm9ncmFtbWVyIiwic3RvcmUiOiIifQ.vtxDr2ryrGTpqxFdw5UGD-GJAZtiNC0CkM9CEOQdWxw
+Content-Type: application/json
+
+{
+  "path": "/"
+}
+
+### Check Role
+POST http://localhost:3050/api/auth/refresh
+Content-Type: application/json
+
+### Get pending proposals
+GET http://localhost:3050/api/master-data/pending
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiMDE5ZGNmZDEtZDg3Yy03NzFhLTllMTgtNTIyYWNiMzZhZGRjIiwiZW1haWwiOiJkd2lAZXhhbXBsZS5jb20iLCJyb2xlIjoic3RhZmYiLCJ0eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzc3MzE2NzcwLCJuYmYiOjE3NzczMTU4NzAsImlhdCI6MTc3NzMxNTg3MH0.VtY7bXTI1ZBdHJkcmK_DK7AsFhZ_Gf77ax9DCKFm7iQ
+
+### Create Master Data Proposal
+POST http://localhost:3050/api/master-data
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiMDE5ZGNmZDEtZDg3Yy03NzFhLTllMTgtNTIyYWNiMzZhZGRjIiwiZW1haWwiOiJkd2lAZXhhbXBsZS5jb20iLCJyb2xlIjoic3RhZmYiLCJ0eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzc3MzE2NzcwLCJuYmYiOjE3NzczMTU4NzAsImlhdCI6MTc3NzMxNTg3MH0.VtY7bXTI1ZBdHJkcmK_DK7AsFhZ_Gf77ax9DCKFm7iQ
+Content-Type: application/json
+
+{
+  "entity_type": "SUPPLIER",
+  "action_type": "CREATE",
+  "reason": "Test proposal from API",
+  "items": [
+    {
+      "payload_json": "{\"code\": \"SUP-TEST-001\", \"name\": \"Test Supplier\", \"email\": \"test@supplier.com\"}"
+    }
+  ]
+}
+
+

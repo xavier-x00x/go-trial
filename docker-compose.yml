@@ -1,0 +1,25 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: go-fiber-app:dev
+    container_name: go-fiber-dev
+    ports:
+      - "3050:3050"
+    volumes:
+      - .:/app
+      - /app/tmp
+    env_file:
+      - .env
+    networks:
+      - shared-network
+
+networks:
+  shared-network:
+    external: true
+
+# docker compose up --build -d
+# stop: docker compose down
+
+# untuk melihat log: docker compose logs -f

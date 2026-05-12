@@ -1,0 +1,21 @@
+services:
+  app:
+    image: go-fiber-app:latest
+    container_name: go-fiber-app
+    ports:
+      - "3050:3050"
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - shared-network
+    restart: always
+
+networks:
+  shared-network:
+    external: true
+
+# docker compose -f docker-compose.server.yml up -d
+# stop: docker compose -f docker-compose.server.yml down

@@ -1,0 +1,36 @@
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Development
+.air.toml
+tools.yaml
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Logs
+logs/
+*.log
+tmp/
+
+# Test files
+*_test.go
+
+# Documentation
+README.md
+api.http
+
+# Environment files
+.env
+.env.*
+!.env.example

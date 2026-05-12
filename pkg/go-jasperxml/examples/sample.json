@@ -1,0 +1,23 @@
+{
+  "purchaseOrders": [
+    {
+      "no": "PO/2505/00001",
+      "tanggal": "01 May 2025",
+      "supplier": "PT Maju Jaya",
+      "alamat": "Jl. Merdeka No. 123",
+      "telp": "+628112345678",
+      "store": "Toko Pusat",
+      "items": [
+        {"nama": "Barang A", "qty": 100, "harga": 10000, "total": 1000000, "sat": "PCS"},
+        {"nama": "Barang B", "qty": 50, "harga": 20000, "total": 1000000, "sat": "PCS"}
+      ],
+      "subtotal": 2000000,
+      "diskon": 0,
+      "ppn": 220000,
+      "total": 2220000,
+      "paymentTerms": 30,
+      "paymentMode": "TRANSFER",
+      "approvedBy": "Admin User"
+    }
+  ]
+}

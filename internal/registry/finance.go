@@ -1,0 +1,45 @@
+package registry
+
+import (
+	"go-trial/internal/config"
+	"go-trial/internal/delivery/http/handler"
+	"go-trial/internal/infrastructure/repository"
+	"go-trial/internal/infrastructure/uow"
+	"go-trial/internal/usecase"
+	"go-trial/pkg/validator"
+
+	"gorm.io/gorm"
+)
+
+type FinanceRegistry struct {
+	Handler             *handler.COAHandler
+	CustomerHandler    *handler.CustomerHandler
+	PaymentMethodHandler *handler.PaymentMethodHandler
+	PriceListHandler   *handler.PriceListHandler
+	TaxHandler         *handler.TaxHandler
+}
+
+func NewFinanceRegistry(db *gorm.DB, cfg *config.Config) *FinanceRegistry {
+	uow := uow.NewUnitOfWork(db)
+	v := validator.New()
+
+	coaRepo := repository.NewChartOfAccountRepository(db)
+	customerRepo := repository.NewCustomerRepository(db)
+	paymentMethodRepo := repository.NewPaymentMethodRepository(db)
+	priceListRepo := repository.NewPriceListRepository(db)
+	taxRepo := repository.NewTaxRepository(db)
+
+	coaUseCase := usecase.NewChartOfAccountUseCase(coaRepo, uow)
+	customerUseCase := usecase.NewCustomerUseCase(customerRepo, coaRepo, uow)
+	paymentMethodUseCase := usecase.NewPaymentMethodUsecase(paymentMethodRepo)
+	priceListUseCase := usecase.NewPriceListUsecase(priceListRepo)
+	taxUseCase := usecase.NewTaxUsecase(taxRepo)
+
+	return &FinanceRegistry{
+		Handler:              handler.NewCOAHandler(coaUseCase, v),
+		CustomerHandler:     handler.NewCustomerHandler(customerUseCase, v),
+		PaymentMethodHandler: handler.NewPaymentMethodHandler(paymentMethodUseCase, v),
+		PriceListHandler:    handler.NewPriceListHandler(priceListUseCase, v),
+		TaxHandler:          handler.NewTaxHandler(taxUseCase, v),
+	}
+}

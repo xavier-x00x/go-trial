@@ -1,0 +1,20 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: go-fiber-app:latest
+    container_name: go-fiber-app
+    ports:
+      - "3050:3050"
+    env_file:
+      - .env
+    networks:
+      - shared-network
+
+networks:
+  shared-network:
+    external: true 
+
+# docker compose -f docker-compose.prod.yml up -d
+# stop: docker compose -f docker-compose.prod.yml down
