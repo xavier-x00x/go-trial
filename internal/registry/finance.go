@@ -12,11 +12,12 @@ import (
 )
 
 type FinanceRegistry struct {
-	Handler             *handler.COAHandler
-	CustomerHandler    *handler.CustomerHandler
-	PaymentMethodHandler *handler.PaymentMethodHandler
-	PriceListHandler   *handler.PriceListHandler
-	TaxHandler         *handler.TaxHandler
+	Handler                *handler.COAHandler
+	CustomerHandler        *handler.CustomerHandler
+	PaymentMethodHandler   *handler.PaymentMethodHandler
+	PriceListHandler       *handler.PriceListHandler
+	TaxHandler             *handler.TaxHandler
+	PurchasePaymentHandler *handler.PurchasePaymentHandler
 }
 
 func NewFinanceRegistry(db *gorm.DB, cfg *config.Config) *FinanceRegistry {
@@ -28,18 +29,36 @@ func NewFinanceRegistry(db *gorm.DB, cfg *config.Config) *FinanceRegistry {
 	paymentMethodRepo := repository.NewPaymentMethodRepository(db)
 	priceListRepo := repository.NewPriceListRepository(db)
 	taxRepo := repository.NewTaxRepository(db)
+	supplierRepo := repository.NewSupplierRepository(db)
+	userRepo := repository.NewUserRepository(db)
+	numberSequenceRepo := repository.NewNumberSequenceRepository(db)
+	monthlyAPBalanceRepo := repository.NewMonthlyAPBalanceRepository(db)
+	purchaseInvoiceRepo := repository.NewPurchaseInvoiceRepository(db)
+	purchasePaymentRepo := repository.NewPurchasePaymentRepository(db)
 
 	coaUseCase := usecase.NewChartOfAccountUseCase(coaRepo, uow)
 	customerUseCase := usecase.NewCustomerUseCase(customerRepo, coaRepo, uow)
 	paymentMethodUseCase := usecase.NewPaymentMethodUsecase(paymentMethodRepo)
 	priceListUseCase := usecase.NewPriceListUsecase(priceListRepo)
 	taxUseCase := usecase.NewTaxUsecase(taxRepo)
+	purchasePaymentUseCase := usecase.NewPurchasePaymentUseCase(usecase.PurchasePaymentConfig{
+		Repo:                    purchasePaymentRepo,
+		PurchaseInvoiceRepo:    purchaseInvoiceRepo,
+		SupplierRepo:            supplierRepo,
+		UserRepo:                userRepo,
+		ChartOfAccountRepo:      coaRepo,
+		MonthlyAPBalanceRepo:    monthlyAPBalanceRepo,
+		NumberSequenceRepo:     numberSequenceRepo,
+		DB:                      db,
+		Uow:                     uow,
+	})
 
 	return &FinanceRegistry{
-		Handler:              handler.NewCOAHandler(coaUseCase, v),
-		CustomerHandler:     handler.NewCustomerHandler(customerUseCase, v),
-		PaymentMethodHandler: handler.NewPaymentMethodHandler(paymentMethodUseCase, v),
-		PriceListHandler:    handler.NewPriceListHandler(priceListUseCase, v),
-		TaxHandler:          handler.NewTaxHandler(taxUseCase, v),
+		Handler:                handler.NewCOAHandler(coaUseCase, v),
+		CustomerHandler:       handler.NewCustomerHandler(customerUseCase, v),
+		PaymentMethodHandler:   handler.NewPaymentMethodHandler(paymentMethodUseCase, v),
+		PriceListHandler:      handler.NewPriceListHandler(priceListUseCase, v),
+		TaxHandler:            handler.NewTaxHandler(taxUseCase, v),
+		PurchasePaymentHandler: handler.NewPurchasePaymentHandler(purchasePaymentUseCase),
 	}
 }

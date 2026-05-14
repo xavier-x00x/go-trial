@@ -16,9 +16,9 @@ import (
 
 var (
 	ErrPurchaseOrderNotFound = errors.New("purchase order not found")
-	ErrPOInvalidStatus     = errors.New("invalid purchase order status transition")
-	ErrPOItemNotFound      = errors.New("po item not found")
-	ErrPONotificationFailed = errors.New("can only resend failed notifications")
+	ErrPOInvalidStatus       = errors.New("invalid purchase order status transition")
+	ErrPOItemNotFound        = errors.New("po item not found")
+	ErrPONotificationFailed  = errors.New("can only resend failed notifications")
 )
 
 type PurchaseOrderUseCase interface {
@@ -40,12 +40,12 @@ type PurchaseOrderConfig struct {
 	Repo                repository.PurchaseOrderRepository
 	PlanningRepo        repository.PurchaseOrderPlanningRepository
 	ProductSupplierRepo repository.ProductSupplierRepository
-	ProductRepo        repository.ProductRepository
-	SupplierRepo      repository.SupplierRepository
-	StoreRepo         repository.StoreRepository
-	WarehouseRepo    repository.WarehouseRepository
-	UserRepo          repository.UserRepository
-	NumberSequenceRepo repository.NumberSequenceRepository
+	ProductRepo         repository.ProductRepository
+	SupplierRepo        repository.SupplierRepository
+	StoreRepo           repository.StoreRepository
+	WarehouseRepo       repository.WarehouseRepository
+	UserRepo            repository.UserRepository
+	NumberSequenceRepo  repository.NumberSequenceRepository
 	NotificationService NotificationService
 	Uow                 interface {
 		Begin(ctx context.Context) (context.Context, error)
@@ -55,17 +55,17 @@ type PurchaseOrderConfig struct {
 }
 
 type purchaseOrderUseCaseImpl struct {
-	repo                 repository.PurchaseOrderRepository
-	planningRepo         repository.PurchaseOrderPlanningRepository
+	repo                repository.PurchaseOrderRepository
+	planningRepo        repository.PurchaseOrderPlanningRepository
 	productSupplierRepo repository.ProductSupplierRepository
 	productRepo         repository.ProductRepository
-	supplierRepo       repository.SupplierRepository
-	storeRepo          repository.StoreRepository
-	warehouseRepo     repository.WarehouseRepository
-	userRepo           repository.UserRepository
+	supplierRepo        repository.SupplierRepository
+	storeRepo           repository.StoreRepository
+	warehouseRepo       repository.WarehouseRepository
+	userRepo            repository.UserRepository
 	numberSequenceRepo  repository.NumberSequenceRepository
 	notificationService NotificationService
-	uow                  interface {
+	uow                 interface {
 		Begin(ctx context.Context) (context.Context, error)
 		Commit(ctx context.Context) error
 		Rollback(ctx context.Context) error
@@ -77,14 +77,14 @@ func NewPurchaseOrderUseCase(cfg PurchaseOrderConfig) PurchaseOrderUseCase {
 		repo:                cfg.Repo,
 		planningRepo:        cfg.PlanningRepo,
 		productSupplierRepo: cfg.ProductSupplierRepo,
-		productRepo:        cfg.ProductRepo,
-		supplierRepo:      cfg.SupplierRepo,
-		storeRepo:         cfg.StoreRepo,
-		warehouseRepo:    cfg.WarehouseRepo,
-		userRepo:          cfg.UserRepo,
-		numberSequenceRepo: cfg.NumberSequenceRepo,
+		productRepo:         cfg.ProductRepo,
+		supplierRepo:        cfg.SupplierRepo,
+		storeRepo:           cfg.StoreRepo,
+		warehouseRepo:       cfg.WarehouseRepo,
+		userRepo:            cfg.UserRepo,
+		numberSequenceRepo:  cfg.NumberSequenceRepo,
 		notificationService: cfg.NotificationService,
-		uow:                cfg.Uow,
+		uow:                 cfg.Uow,
 	}
 }
 
@@ -154,12 +154,12 @@ func (u *purchaseOrderUseCaseImpl) Create(ctx context.Context, userID string, re
 		totalAmount = totalAmount.Add(lineSubtotal)
 
 		items[i] = entity.PurchaseOrderItem{
-			SeqNo:      i + 1,
-			ProductID:  item.ProductID,
-			UOMID:      item.UOMID,
-			QtyOrdered: qty,
-			UnitPrice:  unitPrice,
-			Subtotal:   lineSubtotal,
+			SeqNo:             i + 1,
+			ProductID:         item.ProductID,
+			UOMID:             item.UOMID,
+			QtyOrdered:        qty,
+			UnitPrice:         unitPrice,
+			Subtotal:          lineSubtotal,
 			ProductSupplierID: item.ProductSupplierID,
 			PlanningID:        item.PlanningID,
 			Notes:             item.Notes,
@@ -182,14 +182,14 @@ func (u *purchaseOrderUseCaseImpl) Create(ctx context.Context, userID string, re
 		Notes:            req.Notes,
 		SupplierNotes:    req.SupplierNotes,
 		Items:            items,
-		SupplierName:         supplier.Name,
-		SupplierCode:       supplier.Code,
-		SupplierAddress:     supplier.Address,
-		StoreCode:          store.Code,
-		StoreName:          store.Name,
-		StoreAddress:       store.Address,
-		WarehouseName:      warehouse.Name,
-		CreatedByName:      creator.Name,
+		SupplierName:     supplier.Name,
+		SupplierCode:     supplier.Code,
+		SupplierAddress:  supplier.Address,
+		StoreCode:        store.Code,
+		StoreName:        store.Name,
+		StoreAddress:     store.Address,
+		WarehouseName:    warehouse.Name,
+		CreatedByName:    creator.Name,
 	}
 
 	if err := po.GenerateID(); err != nil {
@@ -340,22 +340,22 @@ func (u *purchaseOrderUseCaseImpl) CreateFromPlanning(ctx context.Context, userI
 	if len(items) > 0 {
 		po := &entity.PurchaseOrder{
 			PONumber:        poNum,
-			SupplierID:     supplierID,
-			StoreID:        req.StoreID,
-			WarehouseID:    req.WarehouseID,
-			OrderDate:      orderDate,
-			TotalAmount:    totalSubtotal,
-			Status:         entity.POStatusDraft,
-			CreatedByID:   userUUID,
-			Notes:          req.Notes,
-			Items:          items,
-			SupplierName:         supplier.Name,
-			SupplierCode:        supplier.Code,
-			SupplierAddress:     supplier.Address,
-			StoreCode:           store.Code,
-			StoreName:           store.Name,
-			StoreAddress:        store.Address,
-			WarehouseName:      warehouse.Name,
+			SupplierID:      supplierID,
+			StoreID:         req.StoreID,
+			WarehouseID:     req.WarehouseID,
+			OrderDate:       orderDate,
+			TotalAmount:     totalSubtotal,
+			Status:          entity.POStatusDraft,
+			CreatedByID:     userUUID,
+			Notes:           req.Notes,
+			Items:           items,
+			SupplierName:    supplier.Name,
+			SupplierCode:    supplier.Code,
+			SupplierAddress: supplier.Address,
+			StoreCode:       store.Code,
+			StoreName:       store.Name,
+			StoreAddress:    store.Address,
+			WarehouseName:   warehouse.Name,
 		}
 
 		if err := po.GenerateID(); err != nil {
@@ -381,21 +381,21 @@ func (u *purchaseOrderUseCaseImpl) CreateFromPlanning(ctx context.Context, userI
 
 		poConsignment := &entity.PurchaseOrder{
 			PONumber:        poNumConsignment,
-			SupplierID:     supplierID,
-			StoreID:        req.StoreID,
-			WarehouseID:    req.WarehouseID,
-			OrderDate:      orderDate,
-			TotalAmount:    consignmentSubtotal,
-			Status:        entity.POStatusDraft,
-			CreatedByID:   userUUID,
-			Notes:         req.Notes,
-			Items:         consignmentItems,
-			SupplierName:       supplier.Name,
-			SupplierCode:      supplier.Code,
-			SupplierAddress:   supplier.Address,
+			SupplierID:      supplierID,
+			StoreID:         req.StoreID,
+			WarehouseID:     req.WarehouseID,
+			OrderDate:       orderDate,
+			TotalAmount:     consignmentSubtotal,
+			Status:          entity.POStatusDraft,
+			CreatedByID:     userUUID,
+			Notes:           req.Notes,
+			Items:           consignmentItems,
+			SupplierName:    supplier.Name,
+			SupplierCode:    supplier.Code,
+			SupplierAddress: supplier.Address,
 			StoreCode:       store.Code,
 			StoreName:       store.Name,
-			StoreAddress:     store.Address,
+			StoreAddress:    store.Address,
 			WarehouseName:   warehouse.Name,
 		}
 
@@ -560,19 +560,19 @@ func (u *purchaseOrderUseCaseImpl) BulkCreateFromApprovedPlanning(ctx context.Co
 
 		po := &entity.PurchaseOrder{
 			PONumber:        poNum,
-			SupplierID:     group.SupplierID,
-			StoreID:        storeUUID,
-			WarehouseID:    warehouseUUID,
-			OrderDate:      time.Now(),
-			TotalAmount:    group.Subtotal,
-			Status:         entity.POStatusDraft,
-			CreatedByID:   userUUID,
-			SupplierName:       supplier.Name,
-			SupplierCode:      supplier.Code,
-			SupplierAddress:   supplier.Address,
-			StoreCode:        store.Code,
+			SupplierID:      group.SupplierID,
+			StoreID:         storeUUID,
+			WarehouseID:     warehouseUUID,
+			OrderDate:       time.Now(),
+			TotalAmount:     group.Subtotal,
+			Status:          entity.POStatusDraft,
+			CreatedByID:     userUUID,
+			SupplierName:    supplier.Name,
+			SupplierCode:    supplier.Code,
+			SupplierAddress: supplier.Address,
+			StoreCode:       store.Code,
 			StoreName:       store.Name,
-			StoreAddress:     store.Address,
+			StoreAddress:    store.Address,
 			WarehouseName:   warehouse.Name,
 			CreatedByName:   creator.Name,
 		}
@@ -836,20 +836,20 @@ func toPODetailResponse(po *entity.PurchaseOrder) *dto.PurchaseOrderDetailRespon
 	items := make([]dto.PurchaseOrderItemResponse, len(po.Items))
 	for i, item := range po.Items {
 		items[i] = dto.PurchaseOrderItemResponse{
-			ID:                  item.ID,
-			SeqNo:               item.SeqNo,
-			ProductID:           item.ProductID,
-			ProductSKU:          item.Product.SKU,
-			ProductName:         item.Product.Name,
-			UOMID:               item.UOMID,
-			UOMName:             item.UOM.Name,
-			QtyOrdered:          item.QtyOrdered.InexactFloat64(),
-			QtyReceived:         item.QtyReceived.InexactFloat64(),
-			UnitPrice:           item.UnitPrice.InexactFloat64(),
-			Subtotal:            item.Subtotal.InexactFloat64(),
-			ProductSupplierID:   item.ProductSupplierID,
-			PlanningID:          item.PlanningID,
-			Notes:               item.Notes,
+			ID:                item.ID,
+			SeqNo:             item.SeqNo,
+			ProductID:         item.ProductID,
+			ProductSKU:        item.Product.SKU,
+			ProductName:       item.Product.Name,
+			UOMID:             item.UOMID,
+			UOMName:           item.UOM.Name,
+			QtyOrdered:        item.QtyOrdered.InexactFloat64(),
+			QtyReceived:       item.QtyReceived.InexactFloat64(),
+			UnitPrice:         item.UnitPrice.InexactFloat64(),
+			Subtotal:          item.Subtotal.InexactFloat64(),
+			ProductSupplierID: item.ProductSupplierID,
+			PlanningID:        item.PlanningID,
+			Notes:             item.Notes,
 		}
 	}
 
@@ -871,16 +871,16 @@ func toPODetailResponse(po *entity.PurchaseOrder) *dto.PurchaseOrderDetailRespon
 			ID:   po.WarehouseID,
 			Name: po.WarehouseName,
 		},
-		OrderDate:        po.OrderDate,
-		ExpectedDelivery: po.ExpectedDelivery,
-		PaymentTermDays:  po.PaymentTermDays,
-		PaymentMode:      po.PaymentMode,
-		TotalAmount:      po.TotalAmount.InexactFloat64(),
-		Status:           po.Status,
-		ApprovedByID:     po.ApprovedByID,
-		ApprovedAt:       po.ApprovedAt,
-		CreatedByID:      po.CreatedByID,
-		CreatedByName:    po.CreatedByName,
+		OrderDate:               po.OrderDate,
+		ExpectedDelivery:        po.ExpectedDelivery,
+		PaymentTermDays:         po.PaymentTermDays,
+		PaymentMode:             po.PaymentMode,
+		TotalAmount:             po.TotalAmount.InexactFloat64(),
+		Status:                  po.Status,
+		ApprovedByID:            po.ApprovedByID,
+		ApprovedAt:              po.ApprovedAt,
+		CreatedByID:             po.CreatedByID,
+		CreatedByName:           po.CreatedByName,
 		Notes:                   po.Notes,
 		SupplierNotes:           po.SupplierNotes,
 		SupplierNameSnapshot:    po.SupplierName,
@@ -891,8 +891,8 @@ func toPODetailResponse(po *entity.PurchaseOrder) *dto.PurchaseOrderDetailRespon
 		StoreAddressSnapshot:    po.StoreAddress,
 		WarehouseNameSnapshot:   po.WarehouseName,
 		ApprovedByName:          po.ApprovedByName,
-		CreatedAt:        po.CreatedAt,
-		UpdatedAt:        po.UpdatedAt,
-		Items:            items,
+		CreatedAt:               po.CreatedAt,
+		UpdatedAt:               po.UpdatedAt,
+		Items:                   items,
 	}
 }

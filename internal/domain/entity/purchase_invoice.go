@@ -12,12 +12,13 @@ import (
 // ──────────────────────────────────────────────────────────────────────────────
 
 const (
-	PIStatusDraft         = "DRAFT"          // Faktur baru diinput, belum diverifikasi
-	PIStatusVerified      = "VERIFIED"       // Sudah dicocokkan dengan PO & GR (3-Way Match)
-	PIStatusPosted        = "POSTED"         // Dijurnal → Hutang resmi tercatat di Akuntansi
-	PIStatusPartiallyPaid = "PARTIALLY_PAID" // Sebagian hutang sudah dibayar
-	PIStatusPaid          = "PAID"           // Lunas
-	PIStatusCancelled     = "CANCELLED"      // Dibatalkan (hanya dari DRAFT/VERIFIED)
+	PurchaseInvoiceStatusDraft          = "DRAFT"          // Faktur baru diinput, belum diverifikasi
+	PurchaseInvoiceStatusSubmitted     = "SUBMITTED"      // Faktur telah disubmit ke sistem
+	PurchaseInvoiceStatusVerified      = "VERIFIED"       // Sudah dicocokkan dengan PO & GR (3-Way Match)
+	PurchaseInvoiceStatusPosted        = "POSTED"         // Dijurnal → Hutang resmi tercatat di Akuntansi
+	PurchaseInvoiceStatusPartiallyPaid = "PARTIALLY_PAID" // Sebagian hutang sudah dibayar
+	PurchaseInvoiceStatusPaid          = "PAID"           // Lunas
+	PurchaseInvoiceStatusCancelled     = "CANCELLED"      // Dibatalkan (hanya dari DRAFT/VERIFIED)
 )
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -26,6 +27,12 @@ const (
 
 // PurchaseInvoice adalah dokumen faktur pembelian dari supplier.
 // Dokumen ini merupakan dasar pencatatan hutang (Account Payable) ke supplier.
+//
+// Siklus Hidup:
+//
+//	DRAFT → SUBMITTED → VERIFIED → POSTED → PARTIALLY_PAID → PAID
+//	                  (atau langsung POSTED jika 3-Way Match otomatis)
+//	Bisa CANCELLED kapan saja sebelum POSTED.
 //
 // Efek saat Status berubah ke POSTED:
 //   - Jurnal Akuntansi dicatat: Debit Persediaan, Kredit Hutang Usaha (APAccountID)
@@ -43,19 +50,25 @@ type PurchaseInvoice struct {
 	// ── Identifikasi Dokumen ─────────────────────────────────────────────
 	InvoiceNumber         string        `gorm:"type:varchar(50);uniqueIndex;not null" json:"invoice_number"` // Nomor internal faktur (cth: PI/2026/04/0001)
 	SupplierInvoiceNumber string        `gorm:"type:varchar(50);not null" json:"supplier_invoice_number"`    // Nomor faktur ASLI dari supplier (tercetak di kertas faktur)
+	ReferenceNo           *string       `gorm:"type:varchar(50)" json:"reference_no"`                        // Nomor referensi eksternal
 	PurchaseOrderID       uuid.UUID     `gorm:"type:char(36);not null;index" json:"purchase_order_id"`       // Referensi ke PO induk
 	PurchaseOrder         PurchaseOrder `gorm:"foreignKey:PurchaseOrderID" json:"purchase_order,omitempty"`
 
 	// ── Pihak Terkait ────────────────────────────────────────────────────
 	SupplierID  uuid.UUID      `gorm:"type:char(36);not null;index" json:"supplier_id"`
 	Supplier    Supplier       `gorm:"foreignKey:SupplierID" json:"supplier,omitempty"`
+	StoreID     uuid.UUID      `gorm:"type:char(36);not null;index" json:"store_id"` //Cabang yang terkait
+	Store       Store          `gorm:"foreignKey:StoreID" json:"store,omitempty"`
+	WarehouseID uuid.UUID      `gorm:"type:char(36);not null;index" json:"warehouse_id"` // Gudang tujuan
+	Warehouse   Warehouse      `gorm:"foreignKey:WarehouseID" json:"warehouse,omitempty"`
 	APAccountID uuid.UUID      `gorm:"type:char(36);not null;index" json:"ap_account_id"` // Akun Hutang Usaha untuk penjurnalan (dari Supplier Master atau override)
 	APAccount   ChartOfAccount `gorm:"foreignKey:APAccountID" json:"ap_account,omitempty"`
 
-	// ── Tanggal ──────────────────────────────────────────────────────────
-	InvoiceDate  time.Time `gorm:"not null" json:"invoice_date"`   // Tanggal faktur diterbitkan oleh supplier
-	ReceivedDate time.Time `gorm:"not null" json:"received_date"`  // Tanggal faktur diterima oleh staf Finance kita
-	DueDate      time.Time `gorm:"not null;index" json:"due_date"` // Tanggal jatuh tempo pembayaran (InvoiceDate + PaymentTermDays)
+	// ── Tanggal & Jadwal ─────────────────────────────────────────────────
+	InvoiceDate      time.Time  `gorm:"not null" json:"invoice_date"`   // Tanggal faktur diterbitkan oleh supplier
+	ReceivedDate     time.Time  `gorm:"not null" json:"received_date"`  // Tanggal faktur diterima oleh staf Finance kita
+	DueDate          time.Time  `gorm:"not null;index" json:"due_date"` // Tanggal jatuh tempo pembayaran (InvoiceDate + PaymentTermDays)
+	ExpectedDelivery *time.Time `json:"expected_delivery"`              // Estimasi tanggal pembayaran
 
 	// ── Syarat Pembayaran ────────────────────────────────────────────────
 	PaymentTermDays int    `gorm:"default:0" json:"payment_term_days"`
@@ -83,6 +96,8 @@ type PurchaseInvoice struct {
 	CreatedByID  uuid.UUID  `gorm:"type:char(36);not null;index" json:"created_by_id"`
 	CreatedBy    User       `gorm:"foreignKey:CreatedByID" json:"created_by,omitempty"`
 
+	
+
 	// ── Catatan ──────────────────────────────────────────────────────────
 	Notes *string `gorm:"type:text" json:"notes"`
 
@@ -90,9 +105,14 @@ type PurchaseInvoice struct {
 	SupplierCode    string  `gorm:"type:varchar(20)" json:"supplier_code"`
 	SupplierName    string  `gorm:"type:varchar(150)" json:"supplier_name"`
 	SupplierAddress *string `gorm:"type:text" json:"supplier_address"`
+	StoreCode       string  `gorm:"type:varchar(20)" json:"store_code"`
+	StoreName       string  `gorm:"type:varchar(150)" json:"store_name"`
+	StoreAddress    *string `gorm:"type:text" json:"store_address"`
+	WarehouseName   string  `gorm:"type:varchar(100)" json:"warehouse_name"`
 	VerifiedByName  *string `gorm:"type:varchar(100)" json:"verified_by_name"`
 	PostedByName    *string `gorm:"type:varchar(100)" json:"posted_by_name"`
 	CreatedByName   string  `gorm:"type:varchar(100)" json:"created_by_name"`
+	ApprovedByName  *string `gorm:"type:varchar(100)" json:"approved_by_name"`
 
 	// ── Relasi Detail ────────────────────────────────────────────────────
 	Items []PurchaseInvoiceItem `gorm:"foreignKey:PurchaseInvoiceID" json:"items,omitempty"`
@@ -135,7 +155,7 @@ type PurchaseInvoiceItem struct {
 	TaxPct              decimal.Decimal `gorm:"type:decimal(5,2);default:0" json:"tax_pct"`
 	TaxAmount           decimal.Decimal `gorm:"type:decimal(19,4);default:0" json:"tax_amount"`
 	LandedCostAmount    decimal.Decimal `gorm:"type:decimal(19,4);default:0" json:"landed_cost_amount"`
-	Subtotal            decimal.Decimal `gorm:"type:decimal(19,4);not null" json:"subtotal"`       // (QtyInvoiced × UnitPrice) - TotalDiscountAmount
+	Subtotal            decimal.Decimal `gorm:"type:decimal(19,4);not null" json:"subtotal"`        // (QtyInvoiced × UnitPrice) - TotalDiscountAmount
 	NetUnitPrice        decimal.Decimal `gorm:"type:decimal(19,4);default:0" json:"net_unit_price"` // (Subtotal + TaxAmount + LandedCostAmount) / QtyInvoiced
 
 	// ── Catatan ──────────────────────────────────────────────────────────

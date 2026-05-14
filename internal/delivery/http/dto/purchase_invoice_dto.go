@@ -12,15 +12,21 @@ import (
 // ──────────────────────────────────────────────────────────────────────────────
 
 type CreatePurchaseInvoiceRequest struct {
+	StoreID               uuid.UUID                        `json:"store_id" validate:"required"`
+	WarehouseID           uuid.UUID                        `json:"warehouse_id" validate:"required"`
 	PurchaseOrderID       uuid.UUID                        `json:"purchase_order_id" validate:"required"`
 	SupplierID            uuid.UUID                        `json:"supplier_id" validate:"required"`
 	SupplierInvoiceNumber string                           `json:"supplier_invoice_number" validate:"required,max=50"`
+	ReferenceNo           *string                          `json:"reference_no"`
 	APAccountID           uuid.UUID                        `json:"ap_account_id" validate:"required"`
 	InvoiceDate           time.Time                        `json:"invoice_date" validate:"required"`
 	ReceivedDate          time.Time                        `json:"received_date" validate:"required"`
 	PaymentTermDays       int                              `json:"payment_term_days" validate:"min=0"`
 	PaymentMode           string                           `json:"payment_mode" validate:"omitempty,oneof=CASH TRANSFER GIRO"`
 	DiscountAmount        decimal.Decimal                  `json:"discount_amount" validate:"min=0"`
+	FreightAmount         decimal.Decimal                  `json:"freight_amount" validate:"min=0"`
+	OtherCostAmount       decimal.Decimal                  `json:"other_cost_amount" validate:"min=0"`
+	IsTaxInclusive        bool                             `json:"is_tax_inclusive"`
 	Notes                 *string                          `json:"notes"`
 	Items                 []CreatePurchaseInvoiceItemInput `json:"items" validate:"required,min=1,dive"`
 }
@@ -47,17 +53,32 @@ type CreatePurchaseInvoiceItemInput struct {
 // VerifyPurchaseInvoiceRequest digunakan oleh staf Finance setelah mencocokkan
 // faktur dengan PO dan GR (3-Way Match).
 type VerifyPurchaseInvoiceRequest struct {
+	ID uuid.UUID `json:"id" validate:"required"`
 	Notes *string `json:"notes"`
 }
 
 // PostPurchaseInvoiceRequest digunakan oleh Manajer Akuntansi untuk
 // memposting jurnal hutang ke buku besar.
 type PostPurchaseInvoiceRequest struct {
+	ID uuid.UUID `json:"id" validate:"required"`
 	Notes *string `json:"notes"`
 }
 
+type SubmitPurchaseInvoiceRequest struct {
+	ID uuid.UUID `json:"id" validate:"required"`
+}
+
+type ApprovePurchaseInvoiceRequest struct {
+	ID uuid.UUID `json:"id" validate:"required"`
+}
+
 type CancelPurchaseInvoiceRequest struct {
-	Reason string `json:"reason" validate:"required"`
+	ID     uuid.UUID `json:"id" validate:"required"`
+	Reason string    `json:"reason" validate:"required"`
+}
+
+type ResendPurchaseInvoiceRequest struct {
+	ID uuid.UUID `json:"id" validate:"required"`
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -72,13 +93,23 @@ type PurchaseInvoiceListResponse struct {
 	PONumber              string          `json:"po_number"`
 	SupplierID            uuid.UUID       `json:"supplier_id"`
 	SupplierName          string          `json:"supplier_name"`
+	SupplierCode          string          `json:"supplier_code"`
+	StoreID               uuid.UUID       `json:"store_id"`
+	StoreName             string          `json:"store_name"`
+	WarehouseID           uuid.UUID       `json:"warehouse_id"`
+	WarehouseName         string          `json:"warehouse_name"`
 	InvoiceDate           time.Time       `json:"invoice_date"`
 	DueDate               time.Time       `json:"due_date"`
 	GrandTotal            decimal.Decimal `json:"grand_total"`
 	PaidAmount            decimal.Decimal `json:"paid_amount"`
 	RemainingAmount       decimal.Decimal `json:"remaining_amount"`
 	Status                string          `json:"status"`
+	ApprovedByID          *uuid.UUID      `json:"approved_by_id,omitempty"`
+	ApprovedAt            *time.Time      `json:"approved_at,omitempty"`
+	CreatedByID           uuid.UUID       `json:"created_by_id"`
+	CreatedByName         string          `json:"created_by_name"`
 	CreatedAt             time.Time       `json:"created_at"`
+	UpdatedAt             time.Time       `json:"updated_at"`
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -89,14 +120,17 @@ type PurchaseInvoiceDetailResponse struct {
 	ID                    uuid.UUID                     `json:"id"`
 	InvoiceNumber         string                        `json:"invoice_number"`
 	SupplierInvoiceNumber string                        `json:"supplier_invoice_number"`
+	ReferenceNo          *string                       `json:"reference_no,omitempty"`
 	PurchaseOrderID       uuid.UUID                     `json:"purchase_order_id"`
 	PONumber              string                        `json:"po_number"`
-	SupplierID            uuid.UUID                     `json:"supplier_id"`
-	SupplierName          string                        `json:"supplier_name"`
+	Supplier              SupplierResponse              `json:"supplier"`
+	Store                 StoreResponse                  `json:"store"`
+	Warehouse             WarehouseResponse             `json:"warehouse"`
 	APAccountID           uuid.UUID                     `json:"ap_account_id"`
 	InvoiceDate           time.Time                     `json:"invoice_date"`
 	ReceivedDate          time.Time                     `json:"received_date"`
 	DueDate               time.Time                     `json:"due_date"`
+	ExpectedDelivery      *time.Time                    `json:"expected_delivery,omitempty"`
 	PaymentTermDays       int                           `json:"payment_term_days"`
 	PaymentMode           string                        `json:"payment_mode"`
 	Subtotal              decimal.Decimal               `json:"subtotal"`
@@ -114,7 +148,15 @@ type PurchaseInvoiceDetailResponse struct {
 	PostedByID            *uuid.UUID                    `json:"posted_by_id,omitempty"`
 	PostedAt              *time.Time                    `json:"posted_at,omitempty"`
 	CreatedByID           uuid.UUID                     `json:"created_by_id"`
+	CreatedByName         string                        `json:"created_by_name"`
 	Notes                 *string                       `json:"notes,omitempty"`
+	SupplierNameSnapshot  string                        `json:"supplier_name"`
+	SupplierCodeSnapshot  string                        `json:"supplier_code"`
+	SupplierAddressSnapshot *string                      `json:"supplier_address,omitempty"`
+	StoreCodeSnapshot     string                        `json:"store_code"`
+	StoreNameSnapshot     string                        `json:"store_name"`
+	StoreAddressSnapshot  *string                       `json:"store_address,omitempty"`
+	WarehouseNameSnapshot string                        `json:"warehouse_name"`
 	CreatedAt             time.Time                     `json:"created_at"`
 	UpdatedAt             time.Time                     `json:"updated_at"`
 	Items                 []PurchaseInvoiceItemResponse `json:"items"`

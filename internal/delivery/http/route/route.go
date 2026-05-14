@@ -120,6 +120,7 @@ func setupFinanceRoutes(r fiber.Router, reg *registry.Registry) {
 	setupPaymentMethods(r, f)
 	setupPriceLists(r, f)
 	setupTaxes(r, f)
+	setupPurchasePayments(r, f)
 }
 
 func setupAccounts(r fiber.Router, f *registry.FinanceRegistry) {
@@ -175,6 +176,16 @@ func setupTaxes(r fiber.Router, f *registry.FinanceRegistry) {
 	r.Get("/:id", h.GetByID)
 	r.Put("/:id", h.Update)
 	r.Delete("/:id", h.Delete)
+}
+
+func setupPurchasePayments(r fiber.Router, f *registry.FinanceRegistry) {
+	h := f.PurchasePaymentHandler
+	r = r.Group("/purchase-payments")
+	r.Post("", h.Create)
+	r.Get("/pagination", h.List)
+	r.Get("/:id", h.GetByID)
+	r.Post("/:id/post", h.Post)
+	r.Post("/:id/void", h.Void)
 }
 
 func setupWarehouseRoutes(r fiber.Router, reg *registry.Registry) {
