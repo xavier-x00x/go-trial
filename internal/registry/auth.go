@@ -24,7 +24,7 @@ func NewAuthRegistry(db *gorm.DB, cfg *config.Config) *AuthRegistry {
 	uow := uow.NewUnitOfWork(db)
 
 	userRepo := repository.NewUserRepository(db)
-	authUseCase := usecase.NewAuthUseCase(userRepo, uow, jwtManager(cfg))
+	authUseCase := usecase.NewAuthUseCase(userRepo, uow, jwtManager(cfg), cfg)
 
 	rolePermRepo := repository.NewRoleRepository(db)
 	permissionRepo := repository.NewPermissionRepository(db)

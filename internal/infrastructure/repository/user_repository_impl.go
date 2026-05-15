@@ -118,3 +118,15 @@ func (r *userRepository) FindByPIN(ctx context.Context, pin string) (*entity.Use
 	}
 	return &user, nil
 }
+
+func (r *userRepository) FindByGoogleID(ctx context.Context, googleID string) (*entity.User, error) {
+	var user entity.User
+	err := uow.GetTx(ctx, r.db).Where("google_id = ?", googleID).First(&user).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &user, nil
+}

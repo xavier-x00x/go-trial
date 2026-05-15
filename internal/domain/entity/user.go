@@ -10,8 +10,10 @@ type User struct {
 	Email       string     `gorm:"type:varchar(255);uniqueIndex;not null" json:"email"`
 	Phone       *string    `gorm:"type:varchar(20);uniqueIndex;comment:Nomor telepon;null OK" json:"phone,omitempty"`
 	Password    string     `gorm:"type:varchar(255);not null" json:"-"`
-	Role        string     `gorm:"type:varchar(50);not null;default:'staff'" json:"role"`
-	PIN         *string    `gorm:"type:varchar(20);index" json:"pin,omitempty"`
+	Role         string     `gorm:"type:varchar(50);not null;default:'staff'" json:"role"`
+	AuthProvider string     `gorm:"type:varchar(50);not null;default:'local'" json:"auth_provider"`
+	GoogleID     *string    `gorm:"type:varchar(255);uniqueIndex;null" json:"google_id,omitempty"`
+	PIN          *string    `gorm:"type:varchar(20);index" json:"pin,omitempty"`
 	AvatarURL   *string    `gorm:"type:varchar(255);null" json:"avatar_url,omitempty"`
 	IsActive    *bool      `gorm:"type:tinyint(1);not null;default:true" json:"is_active"`
 	LastLoginAt *time.Time `gorm:"type:datetime;comment:Terakhir login" json:"last_login_at,omitempty"`

@@ -48,6 +48,9 @@ func main() {
 		return c.JSON(fiber.Map{"status": "ok"})
 	})
 
+	// Static files
+	app.Static("/uploads", "./uploads")
+
 	// Register routes
 	route.Setup(app, reg, reg.JWTManager)
 

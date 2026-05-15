@@ -12,6 +12,7 @@ type UserRepository interface {
 	FindByUsername(ctx context.Context, username string) (*entity.User, error)
 	FindByIdentity(ctx context.Context, identity string) (*entity.User, error)
 	FindByID(ctx context.Context, id string) (*entity.User, error)
+	FindByGoogleID(ctx context.Context, googleID string) (*entity.User, error)
 	FindAll(ctx context.Context) ([]entity.User, error)
 	FindAllWithPagination(ctx context.Context, filter entity.QueryFilter) ([]entity.User, *entity.Meta, error)
 	Update(ctx context.Context, user *entity.User) error

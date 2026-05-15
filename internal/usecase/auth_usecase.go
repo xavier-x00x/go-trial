@@ -2,10 +2,17 @@ package usecase
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
+	"go-trial/internal/config"
 	"go-trial/internal/delivery/http/dto"
 	"go-trial/internal/domain/entity"
 	"go-trial/internal/domain/repository"
@@ -14,6 +21,8 @@ import (
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 )
 
 var (
@@ -23,12 +32,15 @@ var (
 	ErrInvalidRefreshToken   = errors.New("invalid or expired refresh token")
 	ErrUserNotFound          = errors.New("user not found")
 	ErrAccountInactive       = errors.New("account is inactive")
+	ErrRoleNotAssigned       = errors.New("account is pending approval: role not assigned")
 )
 
 // AuthUseCase defines the business logic for authentication.
 type AuthUseCase interface {
 	Register(ctx context.Context, req dto.RegisterRequest) (*dto.AuthResponse, string, error)
 	Login(ctx context.Context, req dto.LoginRequest) (*dto.AuthResponse, string, error)
+	GoogleLogin(ctx context.Context, code string) (*dto.AuthResponse, string, error)
+	GetGoogleLoginURL() string
 	RefreshToken(ctx context.Context, refreshTokenStr string) (*dto.RefreshResponse, error)
 	GetMe(ctx context.Context, userID string) (*dto.UserResponse, error)
 	GetAllUsers(ctx context.Context) ([]dto.UserResponse, error)
@@ -41,17 +53,31 @@ type authUseCase struct {
 	userRepo   repository.UserRepository
 	uow        uow.UnitOfWork
 	jwtManager *jwtPkg.JWTManager
+	googleCfg  *oauth2.Config
 }
 
 func NewAuthUseCase(
 	userRepo repository.UserRepository,
 	uow uow.UnitOfWork,
 	jwtManager *jwtPkg.JWTManager,
+	cfg *config.Config,
 ) AuthUseCase {
+	googleCfg := &oauth2.Config{
+		ClientID:     cfg.GoogleOAuth.ClientID,
+		ClientSecret: cfg.GoogleOAuth.ClientSecret,
+		RedirectURL:  cfg.GoogleOAuth.RedirectURL,
+		Scopes: []string{
+			"https://www.googleapis.com/auth/userinfo.email",
+			"https://www.googleapis.com/auth/userinfo.profile",
+		},
+		Endpoint: google.Endpoint,
+	}
+
 	return &authUseCase{
 		userRepo:   userRepo,
 		uow:        uow,
 		jwtManager: jwtManager,
+		googleCfg:  googleCfg,
 	}
 }
 
@@ -154,6 +180,11 @@ func (u *authUseCase) Login(ctx context.Context, req dto.LoginRequest) (*dto.Aut
 	// Check active status
 	if user.IsActive != nil && !*user.IsActive {
 		return nil, "", ErrAccountInactive
+	}
+
+	// Check if role is assigned
+	if user.Role == "" {
+		return nil, "", ErrRoleNotAssigned
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
@@ -367,3 +398,194 @@ func toUserResponse(user *entity.User) dto.UserResponse {
 	}
 }
 
+type googleUserInfo struct {
+	ID            string `json:"id"`
+	Email         string `json:"email"`
+	VerifiedEmail bool   `json:"verified_email"`
+	Name          string `json:"name"`
+	GivenName     string `json:"given_name"`
+	FamilyName    string `json:"family_name"`
+	Picture       string `json:"picture"`
+	Locale        string `json:"locale"`
+}
+
+func (u *authUseCase) GoogleLogin(ctx context.Context, code string) (*dto.AuthResponse, string, error) {
+	// 1. Exchange code for token
+	token, err := u.googleCfg.Exchange(ctx, code)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to exchange code: %w", err)
+	}
+
+	// 2. Fetch user info from Google
+	client := u.googleCfg.Client(ctx, token)
+	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to get user info: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var gUser googleUserInfo
+	if err := json.NewDecoder(resp.Body).Decode(&gUser); err != nil {
+		return nil, "", fmt.Errorf("failed to decode user info: %w", err)
+	}
+
+	// 3. Find or Create user
+	// Try by GoogleID first
+	user, err := u.userRepo.FindByGoogleID(ctx, gUser.ID)
+	if err != nil {
+		return nil, "", err
+	}
+
+	// If not found by GoogleID, try by Email (Link account)
+	if user == nil {
+		user, err = u.userRepo.FindByEmail(ctx, gUser.Email)
+		if err != nil {
+			return nil, "", err
+		}
+	}
+
+	isNewUser := false
+	if user == nil {
+		// Create new user
+		isNewUser = true
+		id, err := uuid.NewV7()
+		if err != nil {
+			return nil, "", err
+		}
+
+		user = &entity.User{
+			ID:           id.String(),
+			Name:         gUser.Name,
+			Email:        gUser.Email,
+			Username:     strings.Split(gUser.Email, "@")[0], // Fallback username
+			Password:     "password",                         // Default password for google users
+			Role:         "",                                 // New google users have NO role
+			AuthProvider: "google",
+			GoogleID:     &gUser.ID,
+		}
+		// Since username must be unique, check if exists and append something if needed
+		existingUser, _ := u.userRepo.FindByUsername(ctx, user.Username)
+		if existingUser != nil {
+			user.Username = fmt.Sprintf("%s_%s", user.Username, id.String()[:8])
+		}
+	} else {
+		// Link GoogleID if not linked
+		if user.GoogleID == nil {
+			user.GoogleID = &gUser.ID
+			user.AuthProvider = "google"
+		}
+	}
+
+	// Check if role is assigned (Requirement: cannot login if role is empty)
+	if user.Role == "" {
+		// Even if new user, we still save it so Admin can see it in user list
+		// BUT we must save it first before returning error, or at least have a way to see it.
+		// Actually, let's save the progress so far (download picture, update last login etc)
+		// but skip token generation if no role.
+	}
+
+	// Download/Sync Profile Picture
+	if gUser.Picture != "" {
+		localAvatarPath, err := u.downloadGoogleProfilePicture(user.ID, gUser.Picture)
+		if err == nil {
+			user.AvatarURL = &localAvatarPath
+		}
+	}
+
+	// Update last login
+	now := time.Now()
+	user.LastLoginAt = &now
+
+	// Begin Transaction via UoW
+	txCtx, err := u.uow.Begin(ctx)
+	if err != nil {
+		return nil, "", err
+	}
+	defer u.uow.Rollback(txCtx)
+
+	if isNewUser {
+		if err := u.userRepo.Create(txCtx, user); err != nil {
+			return nil, "", err
+		}
+	} else {
+		if err := u.userRepo.Update(txCtx, user); err != nil {
+			return nil, "", err
+		}
+	}
+
+	if err := u.uow.Commit(txCtx); err != nil {
+		return nil, "", err
+	}
+
+	// CHECK ROLE AGAIN AFTER COMMIT (to ensure we returned the latest state from DB if needed)
+	if user.Role == "" {
+		return nil, "", ErrRoleNotAssigned
+	}
+
+	// 4. Generate Tokens
+	accessToken, err := u.jwtManager.GenerateAccessToken(user.ID, user.Email, user.Role, user.StoreID)
+	if err != nil {
+		return nil, "", err
+	}
+
+	refreshToken, err := u.jwtManager.GenerateRefreshToken(user.ID, user.Email, user.Role, user.StoreID)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return &dto.AuthResponse{
+		AccessToken: accessToken,
+		User:        toUserResponse(user),
+	}, refreshToken, nil
+}
+
+func (u *authUseCase) GetGoogleLoginURL() string {
+	return u.googleCfg.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
+}
+
+func (u *authUseCase) downloadGoogleProfilePicture(userID, pictureURL string) (string, error) {
+	if pictureURL == "" {
+		return "", nil
+	}
+
+	resp, err := http.Get(pictureURL)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to download picture: %s", resp.Status)
+	}
+
+	// Create directory if not exists
+	dir := "uploads/avatars"
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return "", err
+	}
+
+	// Generate filename
+	ext := ".jpg" // default
+	contentType := resp.Header.Get("Content-Type")
+	if strings.Contains(contentType, "png") {
+		ext = ".png"
+	} else if strings.Contains(contentType, "webp") {
+		ext = ".webp"
+	}
+
+	filename := fmt.Sprintf("%s%s", userID, ext)
+	filePath := filepath.Join(dir, filename)
+
+	out, err := os.Create(filePath)
+	if err != nil {
+		return "", err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	return "/uploads/avatars/" + filename, nil
+}
