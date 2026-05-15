@@ -120,6 +120,24 @@ func (h *MasterDataProposalHandler) Review(c *fiber.Ctx) error {
 	return response.Success(c, fiber.StatusOK, "Proposal reviewed successfully", result)
 }
 
+func (h *MasterDataProposalHandler) Update(c *fiber.Ctx) error {
+	id := c.Params("id")
+	var req dto.UpdateMasterDataProposalRequest
+	if err := c.BodyParser(&req); err != nil {
+		return response.Error(c, fiber.StatusBadRequest, "Invalid request body")
+	}
+	if errs := h.v.Validate(req); len(errs) > 0 {
+		return response.ValidationError(c, "Validation failed", errs)
+	}
+
+	userID := getUserIDFromContext(c)
+	result, err := h.uc.Update(c.UserContext(), userID, id, req)
+	if err != nil {
+		return response.Error(c, fiber.StatusInternalServerError, err.Error())
+	}
+	return response.Success(c, fiber.StatusOK, "Proposal updated successfully", result)
+}
+
 func (h *MasterDataProposalHandler) Execute(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if err := h.uc.Execute(c.UserContext(), id); err != nil {

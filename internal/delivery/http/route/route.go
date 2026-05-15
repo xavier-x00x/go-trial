@@ -207,6 +207,7 @@ func setupMasterDataRoutes(r fiber.Router, reg *registry.Registry) {
 	r.Get("/master-data/entity/:entityType", h.GetByEntityType)
 	r.Get("/master-data/group/:groupId", h.GetByGroup)
 	r.Get("/master-data/:id", h.GetByID)
+	r.Put("/master-data/:id", h.Update)
 	r.Post("/master-data/:id/review", h.Review)
 	r.Post("/master-data/:id/execute", h.Execute)
 	r.Post("/master-data/bulk/product-supplier", h.BulkLinkProductSupplier)
