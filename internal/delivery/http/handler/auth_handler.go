@@ -72,6 +72,9 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 		if errors.Is(err, usecase.ErrAccountInactive) {
 			return response.Error(c, fiber.StatusForbidden, err.Error())
 		}
+		if errors.Is(err, usecase.ErrRoleNotAssigned) {
+			return response.Error(c, fiber.StatusForbidden, err.Error())
+		}
 		return response.Error(c, fiber.StatusInternalServerError, "Failed to login")
 	}
 
@@ -196,6 +199,32 @@ func (h *AuthHandler) DeleteUser(c *fiber.Ctx) error {
 		return response.Error(c, fiber.StatusInternalServerError, err.Error())
 	}
 	return response.Success(c, fiber.StatusOK, "User deleted successfully", nil)
+}
+
+// GoogleRedirect handles GET /api/auth/google
+func (h *AuthHandler) GoogleRedirect(c *fiber.Ctx) error {
+	url := h.authUseCase.GetGoogleLoginURL()
+	return c.Redirect(url)
+}
+
+// GoogleCallback handles GET /api/auth/google/callback
+func (h *AuthHandler) GoogleCallback(c *fiber.Ctx) error {
+	code := c.Query("code")
+	if code == "" {
+		return response.Error(c, fiber.StatusBadRequest, "Code not found")
+	}
+
+	authResp, refreshToken, err := h.authUseCase.GoogleLogin(c.UserContext(), code)
+	if err != nil {
+		if errors.Is(err, usecase.ErrRoleNotAssigned) {
+			return response.Error(c, fiber.StatusForbidden, err.Error())
+		}
+		return response.Error(c, fiber.StatusInternalServerError, err.Error())
+	}
+
+	setRefreshTokenCookie(c, refreshToken)
+
+	return response.Success(c, fiber.StatusOK, "Login successful via Google", authResp)
 }
 
 // setRefreshTokenCookie sets the refresh token as an HTTPOnly cookie.

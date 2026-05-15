@@ -8,11 +8,18 @@ import (
 )
 
 type Config struct {
-	App      AppConfig
-	Database DatabaseConfig
-	Redis    RedisConfig
-	SMTP     SMTPConfig
-	JWT      JWTConfig
+	App         AppConfig
+	Database    DatabaseConfig
+	Redis       RedisConfig
+	SMTP        SMTPConfig
+	JWT         JWTConfig
+	GoogleOAuth GoogleOAuthConfig
+}
+
+type GoogleOAuthConfig struct {
+	ClientID     string
+	ClientSecret string
+	RedirectURL  string
 }
 
 type AppConfig struct {
@@ -75,6 +82,11 @@ func Load() *Config {
 		},
 		JWT: JWTConfig{
 			Secret: getEnv("JWT_SECRET", "super-secret-key-change-me"),
+		},
+		GoogleOAuth: GoogleOAuthConfig{
+			ClientID:     getEnv("GOOGLE_CLIENT_ID", ""),
+			ClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),
+			RedirectURL:  getEnv("GOOGLE_REDIRECT_URL", ""),
 		},
 	}
 }
