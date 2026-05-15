@@ -15,6 +15,7 @@ func Setup(app *fiber.App, reg *registry.Registry, jwtManager *jwtPkg.JWTManager
 	api.Post("/auth/login", reg.Auth.Handler.Login)
 	api.Get("/auth/google", reg.Auth.Handler.GoogleRedirect)
 	api.Get("/auth/google/callback", reg.Auth.Handler.GoogleCallback)
+	api.Post("/auth/google/token", reg.Auth.Handler.GoogleTokenLogin)
 	api.Post("/auth/refresh", reg.Auth.Handler.RefreshToken)
 	api.Post("/auth/logout", reg.Auth.Handler.Logout)
 

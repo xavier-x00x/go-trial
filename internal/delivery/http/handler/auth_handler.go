@@ -227,6 +227,30 @@ func (h *AuthHandler) GoogleCallback(c *fiber.Ctx) error {
 	return response.Success(c, fiber.StatusOK, "Login successful via Google", authResp)
 }
 
+// GoogleTokenLogin handles POST /api/auth/google/token
+func (h *AuthHandler) GoogleTokenLogin(c *fiber.Ctx) error {
+	var req dto.GoogleTokenLoginRequest
+	if err := c.BodyParser(&req); err != nil {
+		return response.Error(c, fiber.StatusBadRequest, "Invalid request body")
+	}
+
+	if errs := h.validator.Validate(req); len(errs) > 0 {
+		return response.ValidationError(c, "Validation failed", errs)
+	}
+
+	authResp, refreshToken, err := h.authUseCase.GoogleLoginWithToken(c.UserContext(), req)
+	if err != nil {
+		if errors.Is(err, usecase.ErrRoleNotAssigned) {
+			return response.Error(c, fiber.StatusForbidden, err.Error())
+		}
+		return response.Error(c, fiber.StatusInternalServerError, err.Error())
+	}
+
+	setRefreshTokenCookie(c, refreshToken)
+
+	return response.Success(c, fiber.StatusOK, "Login successful via Google Token", authResp)
+}
+
 // setRefreshTokenCookie sets the refresh token as an HTTPOnly cookie.
 func setRefreshTokenCookie(c *fiber.Ctx, token string) {
 	c.Cookie(&fiber.Cookie{

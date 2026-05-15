@@ -23,6 +23,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+	"google.golang.org/api/idtoken"
 )
 
 var (
@@ -40,6 +41,7 @@ type AuthUseCase interface {
 	Register(ctx context.Context, req dto.RegisterRequest) (*dto.AuthResponse, string, error)
 	Login(ctx context.Context, req dto.LoginRequest) (*dto.AuthResponse, string, error)
 	GoogleLogin(ctx context.Context, code string) (*dto.AuthResponse, string, error)
+	GoogleLoginWithToken(ctx context.Context, req dto.GoogleTokenLoginRequest) (*dto.AuthResponse, string, error)
 	GetGoogleLoginURL() string
 	RefreshToken(ctx context.Context, refreshTokenStr string) (*dto.RefreshResponse, error)
 	GetMe(ctx context.Context, userID string) (*dto.UserResponse, error)
@@ -429,6 +431,10 @@ func (u *authUseCase) GoogleLogin(ctx context.Context, code string) (*dto.AuthRe
 		return nil, "", fmt.Errorf("failed to decode user info: %w", err)
 	}
 
+	return u.processGoogleUser(ctx, gUser)
+}
+
+func (u *authUseCase) processGoogleUser(ctx context.Context, gUser googleUserInfo) (*dto.AuthResponse, string, error) {
 	// 3. Find or Create user
 	// Try by GoogleID first
 	user, err := u.userRepo.FindByGoogleID(ctx, gUser.ID)
@@ -588,4 +594,38 @@ func (u *authUseCase) downloadGoogleProfilePicture(userID, pictureURL string) (s
 	}
 
 	return "/uploads/avatars/" + filename, nil
+}
+
+func (u *authUseCase) GoogleLoginWithToken(ctx context.Context, req dto.GoogleTokenLoginRequest) (*dto.AuthResponse, string, error) {
+	var gUser googleUserInfo
+
+	if req.TokenType == "id" {
+		// Verify ID Token
+		payload, err := idtoken.Validate(ctx, req.Token, u.googleCfg.ClientID)
+		if err != nil {
+			return nil, "", fmt.Errorf("failed to validate id token: %w", err)
+		}
+
+		gUser = googleUserInfo{
+			ID:      payload.Subject,
+			Email:   payload.Claims["email"].(string),
+			Name:    payload.Claims["name"].(string),
+			Picture: payload.Claims["picture"].(string),
+		}
+	} else {
+		// Access Token: Call userinfo API
+		token := &oauth2.Token{AccessToken: req.Token}
+		client := u.googleCfg.Client(ctx, token)
+		resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
+		if err != nil {
+			return nil, "", fmt.Errorf("failed to get user info: %w", err)
+		}
+		defer resp.Body.Close()
+
+		if err := json.NewDecoder(resp.Body).Decode(&gUser); err != nil {
+			return nil, "", fmt.Errorf("failed to decode user info: %w", err)
+		}
+	}
+
+	return u.processGoogleUser(ctx, gUser)
 }

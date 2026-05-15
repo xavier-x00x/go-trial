@@ -13,9 +13,15 @@ type RegisterRequest struct {
 
 // LoginRequest is the payload for user login.
 type LoginRequest struct {
-	Identity   string `json:"identity" validate:"required"`
-	Password  string `json:"password" validate:"required"`
+	Identity string `json:"identity" validate:"required"`
+	Password string `json:"password" validate:"required"`
 	Remember *bool  `json:"remember,omitempty"`
+}
+
+// GoogleTokenLoginRequest is the payload for login via Google Token (Access or ID Token).
+type GoogleTokenLoginRequest struct {
+	Token     string `json:"token" validate:"required"`
+	TokenType string `json:"token_type" validate:"required,oneof=access id"`
 }
 
 // CreateCOARequest is the payload for creating a chart of account.
