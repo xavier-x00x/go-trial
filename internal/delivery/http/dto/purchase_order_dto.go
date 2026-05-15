@@ -24,6 +24,17 @@ type CreatePurchaseOrderRequest struct {
 	Items            []CreatePurchaseOrderItemRequest `json:"items" validate:"required,min=1,dive"`
 }
 
+// UpdatePurchaseOrderRequest digunakan untuk mengubah PO yang masih DRAFT.
+type UpdatePurchaseOrderRequest struct {
+	ReferenceNo      *string                          `json:"reference_no"`
+	ExpectedDelivery *time.Time                       `json:"expected_delivery"`
+	PaymentTermDays  int                              `json:"payment_term_days"`
+	PaymentMode      string                           `json:"payment_mode"`
+	Notes            *string                          `json:"notes"`
+	SupplierNotes    *string                          `json:"supplier_notes"`
+	Items            []CreatePurchaseOrderItemRequest `json:"items" validate:"required,min=1,dive"`
+}
+
 type CreatePurchaseOrderItemRequest struct {
 	ProductID         uuid.UUID  `json:"product_id" validate:"required"`
 	UOMID             uuid.UUID  `json:"uom_id" validate:"required"`

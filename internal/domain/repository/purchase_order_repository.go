@@ -17,4 +17,5 @@ type PurchaseOrderRepository interface {
 	FindAllWithPagination(ctx context.Context, filter entity.QueryFilter) ([]entity.PurchaseOrder, *entity.Meta, error)
 	Update(ctx context.Context, po *entity.PurchaseOrder) error
 	Delete(ctx context.Context, id string) error
+	DeleteItemsByPurchaseOrderID(ctx context.Context, poID string) error
 }
