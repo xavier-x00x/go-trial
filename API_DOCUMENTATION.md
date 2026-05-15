@@ -1494,6 +1494,8 @@ Content-Type: application/json
 
 ### Create Goods Receipt
 
+Digunakan untuk mencatat penerimaan barang fisik dari supplier berdasarkan Purchase Order (PO).
+
 ```http
 POST /goods-receipts
 Authorization: Bearer {access_token}
@@ -1503,18 +1505,53 @@ Content-Type: application/json
   "purchase_order_id": "uuid",
   "warehouse_id": "uuid",
   "receipt_date": "2026-05-13",
+  "delivery_note_no": "SJ/123",
+  "notes": "Barang datang lengkap",
+  "override_pin": "123456",
   "items": [
     {
-      "po_item_id": "uuid",
-      "quantity_received": 100
+      "purchase_order_item_id": "uuid",
+      "product_id": "uuid",
+      "uom_id": "uuid",
+      "qty_received": 100,
+      "qty_rejected": 0,
+      "unit_price": 50000,
+      "reject_reason": null,
+      "notes": null
     }
   ]
 }
 ```
 
+**Over-Receiving Validation:**
+Sistem akan menghitung sisa kuantitas: `Sisa = Qty Dipesan - Qty Diterima (Confirm) - Qty Draft Lainnya`.
+Jika `qty_received > Sisa`, sistem akan mengembalikan error `ERR_OVER_RECEIVE_NEEDS_PIN`. Untuk melanjutkan, user harus menyertakan `override_pin` milik Supervisor/Kepala Gudang.
+
 ---
 
-### Create Goods Receipt with Invoice
+### Update Goods Receipt
+
+Mengubah data Goods Receipt yang masih berstatus `DRAFT`.
+
+```http
+PUT /goods-receipts/{id}
+Authorization: Bearer {access_token}
+Content-Type: application/json
+
+{
+  "receipt_date": "2026-05-13",
+  "delivery_note_no": "SJ/123-REV",
+  "notes": "Revisi kuantitas",
+  "override_pin": "123456",
+  "items": [...]
+}
+```
+
+---
+
+### Create Goods Receipt with Invoice (Direct Mode)
+
+Shortcut untuk membuat Goods Receipt sekaligus Purchase Invoice (otomatis CONFIRMED & POSTED).
 
 ```http
 POST /goods-receipts/with-invoice
@@ -1524,8 +1561,14 @@ Content-Type: application/json
 {
   "purchase_order_id": "uuid",
   "warehouse_id": "uuid",
-  "invoice_number": "INV001",
+  "receipt_date": "2026-05-13",
+  "delivery_note_no": "SJ/123",
+  "supplier_invoice_number": "INV/SUPP/001",
   "invoice_date": "2026-05-13",
+  "ap_account_id": "uuid",
+  "payment_term_days": 30,
+  "discount_amount": 0,
+  "override_pin": null,
   "items": [...]
 }
 ```
@@ -1535,7 +1578,7 @@ Content-Type: application/json
 ### Get Goods Receipts with Pagination
 
 ```http
-GET /goods-receipts/pagination?page=1&limit=10
+GET /goods-receipts/pagination?page=1&limit=10&search=GR/2026&warehouse_id={uuid}
 Authorization: Bearer {access_token}
 ```
 
@@ -1553,7 +1596,7 @@ Authorization: Bearer {access_token}
 ### Get Goods Receipts by Warehouse
 
 ```http
-GET /goods-receipts/warehouse/{warehouseId}
+GET /goods-receipts/warehouse/{warehouseId}?status=DRAFT
 Authorization: Bearer {access_token}
 ```
 
@@ -1570,23 +1613,27 @@ Authorization: Bearer {access_token}
 
 ### Confirm Goods Receipt
 
+Mengubah status dari `DRAFT` menjadi `CONFIRMED`. Stok akan bertambah dan HPP dihitung.
+
 ```http
 POST /goods-receipts/{id}/confirm
 Authorization: Bearer {access_token}
+Content-Type: application/json
+
+{
+  "notes": "Confirm by Warehouse Manager"
+}
 ```
 
 ---
 
 ### Cancel Goods Receipt
 
+Membatalkan GR (hanya jika masih `DRAFT`).
+
 ```http
 POST /goods-receipts/{id}/cancel
 Authorization: Bearer {access_token}
-Content-Type: application/json
-
-{
-  "reason": "Cancellation reason"
-}
 ```
 
 ---
