@@ -18,6 +18,7 @@ type CreateGoodsReceiptRequest struct {
 	DeliveryNoteNo  *string                       `json:"delivery_note_no" validate:"omitempty,max=50"`
 	Notes           *string                       `json:"notes"`
 	Items           []CreateGoodsReceiptItemInput `json:"items" validate:"required,min=1,dive"`
+	OverridePIN     *string                       `json:"override_pin"`
 }
 
 // UpdateGoodsReceiptRequest digunakan untuk mengubah GR yang masih DRAFT.
@@ -26,6 +27,7 @@ type UpdateGoodsReceiptRequest struct {
 	DeliveryNoteNo *string                       `json:"delivery_note_no" validate:"omitempty,max=50"`
 	Notes          *string                       `json:"notes"`
 	Items          []CreateGoodsReceiptItemInput `json:"items" validate:"required,min=1,dive"`
+	OverridePIN    *string                       `json:"override_pin"`
 }
 
 type CreateGoodsReceiptItemInput struct {
@@ -114,8 +116,10 @@ type GoodsReceiptDetailResponse struct {
 	ReceivedByID    uuid.UUID                  `json:"received_by_id"`
 	ConfirmedByID   *uuid.UUID                 `json:"confirmed_by_id,omitempty"`
 	ConfirmedAt     *time.Time                 `json:"confirmed_at,omitempty"`
-	Notes           *string                    `json:"notes,omitempty"`
-	CreatedAt       time.Time                  `json:"created_at"`
+	Notes                  *string                    `json:"notes,omitempty"`
+	IsOverReceivedOverride bool                       `json:"is_over_received_override"`
+	OverrideApprovedByID   *uuid.UUID                 `json:"override_approved_by_id,omitempty"`
+	CreatedAt              time.Time                  `json:"created_at"`
 	UpdatedAt       time.Time                  `json:"updated_at"`
 	SupplierName    string                     `json:"supplier_name"`
 	SupplierCode    string                     `json:"supplier_code"`

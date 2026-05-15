@@ -8,6 +8,7 @@ import (
 	domainRepo "go-trial/internal/domain/repository"
 	"go-trial/internal/infrastructure/uow"
 
+	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 )
 
@@ -106,4 +107,28 @@ func (r *goodsReceiptRepository) Delete(ctx context.Context, id string) error {
 
 func (r *goodsReceiptRepository) DeleteItemsByGoodsReceiptID(ctx context.Context, grID string) error {
 	return uow.GetTx(ctx, r.db).Where("goods_receipt_id = ?", grID).Delete(&entity.GoodsReceiptItem{}).Error
+}
+
+func (r *goodsReceiptRepository) GetTotalDraftQtyByPOItemID(ctx context.Context, poItemID string, excludeGRID *string) (decimal.Decimal, error) {
+	var result struct {
+		Total decimal.Decimal
+	}
+
+	query := r.db.WithContext(ctx).
+		Table("goods_receipt_items").
+		Select("SUM(qty_received) as total").
+		Joins("JOIN goods_receipts ON goods_receipts.id = goods_receipt_items.goods_receipt_id").
+		Where("goods_receipt_items.purchase_order_item_id = ?", poItemID).
+		Where("goods_receipts.status = ?", entity.GRStatusDraft)
+
+	if excludeGRID != nil {
+		query = query.Where("goods_receipts.id <> ?", *excludeGRID)
+	}
+
+	err := query.Scan(&result).Error
+	if err != nil {
+		return decimal.Zero, err
+	}
+
+	return result.Total, nil
 }

@@ -16,4 +16,5 @@ type UserRepository interface {
 	FindAllWithPagination(ctx context.Context, filter entity.QueryFilter) ([]entity.User, *entity.Meta, error)
 	Update(ctx context.Context, user *entity.User) error
 	Delete(ctx context.Context, id string) error
+	FindByPIN(ctx context.Context, pin string) (*entity.User, error)
 }

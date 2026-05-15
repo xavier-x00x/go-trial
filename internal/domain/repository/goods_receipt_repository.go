@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"go-trial/internal/domain/entity"
+
+	"github.com/shopspring/decimal"
 )
 
 type GoodsReceiptRepository interface {
@@ -16,4 +18,5 @@ type GoodsReceiptRepository interface {
 	Update(ctx context.Context, gr *entity.GoodsReceipt) error
 	Delete(ctx context.Context, id string) error
 	DeleteItemsByGoodsReceiptID(ctx context.Context, grID string) error
+	GetTotalDraftQtyByPOItemID(ctx context.Context, poItemID string, excludeGRID *string) (decimal.Decimal, error)
 }
