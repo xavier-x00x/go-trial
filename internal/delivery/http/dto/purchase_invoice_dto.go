@@ -31,6 +31,23 @@ type CreatePurchaseInvoiceRequest struct {
 	Items                 []CreatePurchaseInvoiceItemInput `json:"items" validate:"required,min=1,dive"`
 }
 
+// UpdatePurchaseInvoiceRequest digunakan untuk mengubah PI yang masih DRAFT.
+type UpdatePurchaseInvoiceRequest struct {
+	SupplierInvoiceNumber string                           `json:"supplier_invoice_number" validate:"required,max=50"`
+	ReferenceNo           *string                          `json:"reference_no"`
+	APAccountID           uuid.UUID                        `json:"ap_account_id" validate:"required"`
+	InvoiceDate           time.Time                        `json:"invoice_date" validate:"required"`
+	ReceivedDate          time.Time                        `json:"received_date" validate:"required"`
+	PaymentTermDays       int                              `json:"payment_term_days" validate:"min=0"`
+	PaymentMode           string                           `json:"payment_mode" validate:"omitempty,oneof=CASH TRANSFER GIRO"`
+	DiscountAmount        decimal.Decimal                  `json:"discount_amount" validate:"min=0"`
+	FreightAmount         decimal.Decimal                  `json:"freight_amount" validate:"min=0"`
+	OtherCostAmount       decimal.Decimal                  `json:"other_cost_amount" validate:"min=0"`
+	IsTaxInclusive        bool                             `json:"is_tax_inclusive"`
+	Notes                 *string                          `json:"notes"`
+	Items                 []CreatePurchaseInvoiceItemInput `json:"items" validate:"required,min=1,dive"`
+}
+
 type CreatePurchaseInvoiceItemInput struct {
 	PurchaseOrderItemID *uuid.UUID      `json:"purchase_order_item_id"`
 	GoodsReceiptItemID  *uuid.UUID      `json:"goods_receipt_item_id"`

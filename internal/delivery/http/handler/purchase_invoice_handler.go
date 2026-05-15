@@ -37,6 +37,30 @@ func (h *PurchaseInvoiceHandler) Create(c *fiber.Ctx) error {
 	return c.Status(http.StatusCreated).JSON(resp)
 }
 
+func (h *PurchaseInvoiceHandler) Update(c *fiber.Ctx) error {
+	userID := c.Locals("user_id")
+	if userID == nil {
+		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{"error": "unauthorized"})
+	}
+
+	id := c.Params("id")
+	if id == "" {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "id is required"})
+	}
+
+	var req dto.UpdatePurchaseInvoiceRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	resp, err := h.uc.Update(c.Context(), userID.(string), id, req)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.JSON(resp)
+}
+
 func (h *PurchaseInvoiceHandler) GetByID(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if id == "" {

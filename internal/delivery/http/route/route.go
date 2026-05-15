@@ -120,7 +120,24 @@ func setupFinanceRoutes(r fiber.Router, reg *registry.Registry) {
 	setupPaymentMethods(r, f)
 	setupPriceLists(r, f)
 	setupTaxes(r, f)
+	setupPurchaseInvoices(r, f)
 	setupPurchasePayments(r, f)
+}
+
+func setupPurchaseInvoices(r fiber.Router, f *registry.FinanceRegistry) {
+	h := f.PurchaseInvoiceHandler
+	r = r.Group("/purchase-invoices")
+	r.Post("", h.Create)
+	r.Get("", h.List)
+	r.Get("/:id", h.GetByID)
+	r.Get("/invoice-number/:invoice_number", h.GetByInvoiceNumber)
+	r.Get("/store/:storeId", h.GetByStoreID)
+	r.Put("/:id", h.Update)
+	r.Post("/:id/submit", h.Submit)
+	r.Post("/:id/approve", h.Approve)
+	r.Post("/:id/verify", h.Verify)
+	r.Post("/:id/post", h.Post)
+	r.Post("/:id/cancel", h.Cancel)
 }
 
 func setupAccounts(r fiber.Router, f *registry.FinanceRegistry) {
