@@ -182,21 +182,30 @@ func (u *purchasePaymentUseCaseImpl) Create(ctx context.Context, userID string, 
 		return nil, errors.New("giro_number is required when payment_mode is GIRO")
 	}
 
+	// Final Total Amount (Cash/Bank Out)
+	totalAmount = totalInvoice.Sub(totalReturn).Add(req.AdminFeeAmount).Sub(req.DiscountAmount).Sub(req.WHTAmount)
+
 	pp := &entity.PurchasePayment{
-		PaymentNumber:    paymentNum,
-		ReferenceNo:      req.ReferenceNo,
-		SupplierID:       req.SupplierID,
-		PaymentAccountID: req.PaymentAccountID,
-		APAccountID:      req.APAccountID,
-		PaymentDate:      paymentDate,
-		PaymentMode:      req.PaymentMode,
-		GiroNumber:       req.GiroNumber,
-		GiroDueDate:      req.GiroDueDate,
-		TotalAmount:      totalAmount,
-		Status:           entity.PPStatusDraft,
-		CreatedByID:      userUUID,
-		Notes:            req.Notes,
-		Items:            items,
+		PaymentNumber:     paymentNum,
+		ReferenceNo:       req.ReferenceNo,
+		SupplierID:        req.SupplierID,
+		PaymentAccountID:  req.PaymentAccountID,
+		APAccountID:       req.APAccountID,
+		PaymentDate:       paymentDate,
+		PaymentMode:       req.PaymentMode,
+		GiroNumber:        req.GiroNumber,
+		GiroDueDate:       req.GiroDueDate,
+		TotalAmount:       totalAmount,
+		AdminFeeAmount:    req.AdminFeeAmount,
+		AdminFeeAccountID: req.AdminFeeAccountID,
+		DiscountAmount:    req.DiscountAmount,
+		DiscountAccountID: req.DiscountAccountID,
+		WHTAmount:         req.WHTAmount,
+		WHTAccountID:      req.WHTAccountID,
+		Status:            entity.PPStatusDraft,
+		CreatedByID:       userUUID,
+		Notes:             req.Notes,
+		Items:             items,
 	}
 
 	if err := pp.GenerateID(); err != nil {
@@ -475,9 +484,9 @@ func (u *purchasePaymentUseCaseImpl) createJournalEntry(ctx context.Context, pp 
 	seqNum, _ := u.numberSequenceRepo.GetNextNumber(context.Background(), "JE", period)
 	entryNumber := fmt.Sprintf("JE/%s/%05d", period, seqNum)
 
-	amount := pp.TotalAmount
-	if isReversal {
-		amount = amount.Neg()
+	totalAP := decimal.Zero
+	for _, item := range pp.Items {
+		totalAP = totalAP.Add(item.PaidAmount)
 	}
 
 	posterID, _ := uuid.Parse(poster.ID)
@@ -489,27 +498,97 @@ func (u *purchasePaymentUseCaseImpl) createJournalEntry(ctx context.Context, pp 
 		SourceDocumentNo:   &pp.PaymentNumber,
 		EntryDate:           entryDate,
 		Period:             period,
-		TotalDebit:         amount,
-		TotalCredit:        amount,
 		Description:        description,
 		Status:             entity.JournalStatusPosted,
 		PostedByID:         posterID,
-		Lines: []entity.JournalEntryLine{
-			{
-				SeqNo:          1,
-				AccountID:      pp.APAccountID,
-				DebitAmount:    amount,
-				CreditAmount:   decimal.Zero,
-				Description:    &description,
-			},
-			{
-				SeqNo:          2,
-				AccountID:      pp.PaymentAccountID,
-				DebitAmount:    decimal.Zero,
-				CreditAmount:   amount,
-				Description:    &description,
-			},
-		},
+	}
+
+	lines := []entity.JournalEntryLine{}
+	seq := 1
+
+	// 1. Debit: Accounts Payable (Total allocation)
+	apAmount := totalAP
+	if isReversal {
+		apAmount = apAmount.Neg()
+	}
+	lines = append(lines, entity.JournalEntryLine{
+		SeqNo:        seq,
+		AccountID:    pp.APAccountID,
+		DebitAmount:  apAmount,
+		CreditAmount: decimal.Zero,
+		Description:  &description,
+	})
+	seq++
+
+	// 2. Debit: Admin Fee (if any)
+	if pp.AdminFeeAmount.IsPositive() && pp.AdminFeeAccountID != nil {
+		feeAmount := pp.AdminFeeAmount
+		if isReversal {
+			feeAmount = feeAmount.Neg()
+		}
+		lines = append(lines, entity.JournalEntryLine{
+			SeqNo:        seq,
+			AccountID:    *pp.AdminFeeAccountID,
+			DebitAmount:  feeAmount,
+			CreditAmount: decimal.Zero,
+			Description:  &description,
+		})
+		seq++
+	}
+
+	// 3. Credit: Kas/Bank (Actual Cash Out)
+	cashAmount := pp.TotalAmount
+	if isReversal {
+		cashAmount = cashAmount.Neg()
+	}
+	lines = append(lines, entity.JournalEntryLine{
+		SeqNo:        seq,
+		AccountID:    pp.PaymentAccountID,
+		DebitAmount:  decimal.Zero,
+		CreditAmount: cashAmount,
+		Description:  &description,
+	})
+	seq++
+
+	// 4. Credit: Discount (if any)
+	if pp.DiscountAmount.IsPositive() && pp.DiscountAccountID != nil {
+		discAmount := pp.DiscountAmount
+		if isReversal {
+			discAmount = discAmount.Neg()
+		}
+		lines = append(lines, entity.JournalEntryLine{
+			SeqNo:        seq,
+			AccountID:    *pp.DiscountAccountID,
+			DebitAmount:  decimal.Zero,
+			CreditAmount: discAmount,
+			Description:  &description,
+		})
+		seq++
+	}
+
+	// 5. Credit: WHT/PPh (if any)
+	if pp.WHTAmount.IsPositive() && pp.WHTAccountID != nil {
+		whtAmt := pp.WHTAmount
+		if isReversal {
+			whtAmt = whtAmt.Neg()
+		}
+		lines = append(lines, entity.JournalEntryLine{
+			SeqNo:        seq,
+			AccountID:    *pp.WHTAccountID,
+			DebitAmount:  decimal.Zero,
+			CreditAmount: whtAmt,
+			Description:  &description,
+		})
+		seq++
+	}
+
+	je.Lines = lines
+	je.TotalDebit = totalAP.Add(pp.AdminFeeAmount)
+	je.TotalCredit = pp.TotalAmount.Add(pp.DiscountAmount).Add(pp.WHTAmount)
+
+	if isReversal {
+		je.TotalDebit = je.TotalDebit.Neg()
+		je.TotalCredit = je.TotalCredit.Neg()
 	}
 
 	je.GenerateID()
@@ -563,26 +642,32 @@ func toPPDetailResponse(pp *entity.PurchasePayment) *dto.PurchasePaymentDetailRe
 	}
 
 	resp := &dto.PurchasePaymentDetailResponse{
-		ID:               pp.ID,
-		PaymentNumber:    pp.PaymentNumber,
-		ReferenceNo:      pp.ReferenceNo,
-		SupplierID:       pp.SupplierID,
-		SupplierName:     pp.Supplier.Name,
-		PaymentAccountID: pp.PaymentAccountID,
-		APAccountID:      pp.APAccountID,
-		PaymentDate:      pp.PaymentDate,
-		PaymentMode:      pp.PaymentMode,
-		GiroNumber:       pp.GiroNumber,
-		GiroDueDate:      pp.GiroDueDate,
-		TotalAmount:      pp.TotalAmount,
-		Status:           pp.Status,
-		CreatedByID:      pp.CreatedByID,
-		PostedByID:       pp.PostedByID,
-		PostedAt:         pp.PostedAt,
-		Notes:            pp.Notes,
-		CreatedAt:        pp.CreatedAt,
-		UpdatedAt:        pp.UpdatedAt,
-		Items:            items,
+		ID:                pp.ID,
+		PaymentNumber:     pp.PaymentNumber,
+		ReferenceNo:       pp.ReferenceNo,
+		SupplierID:        pp.SupplierID,
+		SupplierName:      pp.Supplier.Name,
+		PaymentAccountID:  pp.PaymentAccountID,
+		APAccountID:       pp.APAccountID,
+		PaymentDate:       pp.PaymentDate,
+		PaymentMode:       pp.PaymentMode,
+		GiroNumber:        pp.GiroNumber,
+		GiroDueDate:       pp.GiroDueDate,
+		TotalAmount:       pp.TotalAmount,
+		AdminFeeAmount:    pp.AdminFeeAmount,
+		AdminFeeAccountID: pp.AdminFeeAccountID,
+		DiscountAmount:    pp.DiscountAmount,
+		DiscountAccountID: pp.DiscountAccountID,
+		WHTAmount:         pp.WHTAmount,
+		WHTAccountID:      pp.WHTAccountID,
+		Status:            pp.Status,
+		CreatedByID:       pp.CreatedByID,
+		PostedByID:        pp.PostedByID,
+		PostedAt:          pp.PostedAt,
+		Notes:             pp.Notes,
+		CreatedAt:         pp.CreatedAt,
+		UpdatedAt:         pp.UpdatedAt,
+		Items:             items,
 	}
 
 	return resp

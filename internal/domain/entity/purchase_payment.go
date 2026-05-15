@@ -52,7 +52,20 @@ type PurchasePayment struct {
 	GiroDueDate *time.Time `json:"giro_due_date"`                                 // Tanggal jatuh tempo Giro
 
 	// ── Nilai Transaksi ──────────────────────────────────────────────────
-	TotalAmount decimal.Decimal `gorm:"type:decimal(19,4);not null" json:"total_amount"` // Total nilai pembayaran
+	TotalAmount decimal.Decimal `gorm:"type:decimal(19,4);not null" json:"total_amount"` // Total nilai kas/bank keluar
+
+	// ── Biaya & Penyesuaian ──────────────────────────────────────────────
+	AdminFeeAmount    decimal.Decimal `gorm:"type:decimal(19,4);default:0" json:"admin_fee_amount"`
+	AdminFeeAccountID *uuid.UUID      `gorm:"type:char(36);index" json:"admin_fee_account_id"`
+	AdminFeeAccount   *ChartOfAccount `gorm:"foreignKey:AdminFeeAccountID" json:"admin_fee_account,omitempty"`
+
+	DiscountAmount    decimal.Decimal `gorm:"type:decimal(19,4);default:0" json:"discount_amount"`
+	DiscountAccountID *uuid.UUID      `gorm:"type:char(36);index" json:"discount_account_id"`
+	DiscountAccount   *ChartOfAccount `gorm:"foreignKey:DiscountAccountID" json:"discount_account,omitempty"`
+
+	WHTAmount    decimal.Decimal `gorm:"type:decimal(19,4);default:0" json:"wht_amount"` // Withholding Tax (PPh)
+	WHTAccountID *uuid.UUID      `gorm:"type:char(36);index" json:"wht_account_id"`
+	WHTAccount   *ChartOfAccount `gorm:"foreignKey:WHTAccountID" json:"wht_account,omitempty"`
 
 	// ── Status & Tracking ────────────────────────────────────────────────
 	Status      string     `gorm:"type:varchar(10);not null;default:'DRAFT';index" json:"status"`

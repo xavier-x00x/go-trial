@@ -9,9 +9,11 @@ import (
 	"go-trial/internal/delivery/http/dto"
 	"go-trial/internal/domain/entity"
 	"go-trial/internal/domain/repository"
+	"go-trial/internal/infrastructure/uow"
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
+	"gorm.io/gorm"
 )
 
 var (
@@ -43,8 +45,11 @@ type PurchaseInvoiceConfig struct {
 	StoreRepo          repository.StoreRepository
 	WarehouseRepo      repository.WarehouseRepository
 	UserRepo           repository.UserRepository
-	NumberSequenceRepo repository.NumberSequenceRepository
-	Uow                interface {
+	NumberSequenceRepo   repository.NumberSequenceRepository
+	ChartOfAccountRepo   repository.ChartOfAccountRepository
+	MonthlyAPBalanceRepo repository.MonthlyAPBalanceRepository
+	DB                   *gorm.DB
+	Uow                  interface {
 		Begin(ctx context.Context) (context.Context, error)
 		Commit(ctx context.Context) error
 		Rollback(ctx context.Context) error
@@ -58,8 +63,11 @@ type purchaseInvoiceUseCaseImpl struct {
 	storeRepo          repository.StoreRepository
 	warehouseRepo      repository.WarehouseRepository
 	userRepo           repository.UserRepository
-	numberSequenceRepo repository.NumberSequenceRepository
-	uow                interface {
+	numberSequenceRepo   repository.NumberSequenceRepository
+	coaRepo              repository.ChartOfAccountRepository
+	monthlyAPBalanceRepo repository.MonthlyAPBalanceRepository
+	db                   *gorm.DB
+	uow                  interface {
 		Begin(ctx context.Context) (context.Context, error)
 		Commit(ctx context.Context) error
 		Rollback(ctx context.Context) error
@@ -73,9 +81,12 @@ func NewPurchaseInvoiceUseCase(cfg PurchaseInvoiceConfig) PurchaseInvoiceUseCase
 		supplierRepo:       cfg.SupplierRepo,
 		storeRepo:          cfg.StoreRepo,
 		warehouseRepo:      cfg.WarehouseRepo,
-		userRepo:           cfg.UserRepo,
-		numberSequenceRepo: cfg.NumberSequenceRepo,
-		uow:                cfg.Uow,
+		userRepo:             cfg.UserRepo,
+		numberSequenceRepo:   cfg.NumberSequenceRepo,
+		coaRepo:              cfg.ChartOfAccountRepo,
+		monthlyAPBalanceRepo: cfg.MonthlyAPBalanceRepo,
+		db:                   cfg.DB,
+		uow:                  cfg.Uow,
 	}
 }
 
@@ -189,6 +200,7 @@ func (u *purchaseInvoiceUseCaseImpl) Create(ctx context.Context, userID string, 
 		StoreID:               req.StoreID,
 		WarehouseID:           req.WarehouseID,
 		APAccountID:           req.APAccountID,
+		InventoryAccountID:    req.InventoryAccountID,
 		InvoiceDate:           invoiceDate,
 		ReceivedDate:          req.ReceivedDate,
 		DueDate:               dueDate,
@@ -375,7 +387,8 @@ func (u *purchaseInvoiceUseCaseImpl) Update(ctx context.Context, userID string, 
 	pi.SupplierInvoiceNumber = req.SupplierInvoiceNumber
 	pi.ReferenceNo = req.ReferenceNo
 	pi.APAccountID = req.APAccountID
-	pi.InvoiceDate = invoiceDate
+	pi.InventoryAccountID = req.InventoryAccountID
+	pi.InvoiceDate = req.InvoiceDate
 	pi.ReceivedDate = req.ReceivedDate
 	pi.DueDate = dueDate
 	pi.PaymentTermDays = req.PaymentTermDays
@@ -541,7 +554,93 @@ func (u *purchaseInvoiceUseCaseImpl) Post(ctx context.Context, userID string, id
 		return err
 	}
 
+	// Create journal entry and update AP balance
+	if err := u.createJournalEntry(txCtx, pi, poster); err != nil {
+		return err
+	}
+
 	return u.uow.Commit(txCtx)
+}
+
+func (u *purchaseInvoiceUseCaseImpl) createJournalEntry(ctx context.Context, pi *entity.PurchaseInvoice, poster *entity.User) error {
+	tx := uow.GetTx(ctx, u.db)
+
+	// Update Monthly AP Balance
+	periodMonth := pi.InvoiceDate.Format("2006-01")
+	apBalance, err := u.monthlyAPBalanceRepo.FindByPeriodSupplier(ctx, periodMonth, pi.SupplierID.String())
+	if err != nil {
+		return err
+	}
+
+	if apBalance == nil {
+		apBalance = &entity.MonthlyAPBalance{
+			PeriodMonth:      periodMonth,
+			SupplierID:       pi.SupplierID,
+			BeginningBalance: decimal.Zero,
+			TotalDebit:       decimal.Zero,
+			TotalCredit:      decimal.Zero,
+			EndingBalance:    decimal.Zero,
+		}
+		if err := u.monthlyAPBalanceRepo.Create(ctx, apBalance); err != nil {
+			return err
+		}
+	}
+
+	apBalance.TotalCredit = apBalance.TotalCredit.Add(pi.GrandTotal)
+	apBalance.EndingBalance = apBalance.EndingBalance.Add(pi.GrandTotal)
+	if err := u.monthlyAPBalanceRepo.Update(ctx, apBalance); err != nil {
+		return err
+	}
+
+	// Create Journal Entry
+	entryDate := pi.InvoiceDate
+	period := entryDate.Format("2006-01")
+	description := fmt.Sprintf("Faktur Pembelian %s - %s", pi.InvoiceNumber, pi.SupplierName)
+
+	seqNum, _ := u.numberSequenceRepo.GetNextNumber(ctx, "JE", period)
+	entryNumber := fmt.Sprintf("JE/%s/%05d", period, seqNum)
+
+	posterID, _ := uuid.Parse(poster.ID)
+
+	je := &entity.JournalEntry{
+		EntryNumber:        entryNumber,
+		SourceDocumentType: entity.JournalSourcePurchaseInvoice,
+		SourceDocumentID:   &pi.ID,
+		SourceDocumentNo:   &pi.InvoiceNumber,
+		EntryDate:           entryDate,
+		Period:             period,
+		TotalDebit:         pi.GrandTotal,
+		TotalCredit:        pi.GrandTotal,
+		Description:        description,
+		Status:             entity.JournalStatusPosted,
+		PostedByID:         posterID,
+		Lines: []entity.JournalEntryLine{
+			{
+				SeqNo:        1,
+				AccountID:    pi.InventoryAccountID,
+				DebitAmount:  pi.GrandTotal,
+				CreditAmount: decimal.Zero,
+				Description:  &description,
+			},
+			{
+				SeqNo:        2,
+				AccountID:    pi.APAccountID,
+				DebitAmount:  decimal.Zero,
+				CreditAmount: pi.GrandTotal,
+				Description:  &description,
+			},
+		},
+	}
+
+	if err := je.GenerateID(); err != nil {
+		return err
+	}
+
+	for i := range je.Lines {
+		je.Lines[i].JournalEntryID = je.ID
+	}
+
+	return tx.Create(je).Error
 }
 
 func (u *purchaseInvoiceUseCaseImpl) Cancel(ctx context.Context, userID string, id string, reason string) error {
@@ -659,20 +758,21 @@ func toPIDetailResponse(pi *entity.PurchaseInvoice) *dto.PurchaseInvoiceDetailRe
 			ID:   pi.WarehouseID,
 			Name: pi.WarehouseName,
 		},
-		APAccountID:             pi.APAccountID,
-		InvoiceDate:             pi.InvoiceDate,
-		ReceivedDate:            pi.ReceivedDate,
-		DueDate:                 pi.DueDate,
-		ExpectedDelivery:        pi.ExpectedDelivery,
-		PaymentTermDays:         pi.PaymentTermDays,
-		PaymentMode:             pi.PaymentMode,
-		Subtotal:                pi.Subtotal,
-		DiscountAmount:          pi.DiscountAmount,
-		TaxAmount:               pi.TaxAmount,
-		FreightAmount:           pi.FreightAmount,
-		OtherCostAmount:         pi.OtherCostAmount,
-		GrandTotal:              pi.GrandTotal,
-		IsTaxInclusive:          pi.IsTaxInclusive,
+		APAccountID:        pi.APAccountID,
+		InventoryAccountID: pi.InventoryAccountID,
+		InvoiceDate:        pi.InvoiceDate,
+		ReceivedDate:       pi.ReceivedDate,
+		DueDate:            pi.DueDate,
+		ExpectedDelivery:   pi.ExpectedDelivery,
+		PaymentTermDays:    pi.PaymentTermDays,
+		PaymentMode:        pi.PaymentMode,
+		Subtotal:           pi.Subtotal,
+		DiscountAmount:     pi.DiscountAmount,
+		TaxAmount:          pi.TaxAmount,
+		FreightAmount:      pi.FreightAmount,
+		OtherCostAmount:    pi.OtherCostAmount,
+		GrandTotal:         pi.GrandTotal,
+		IsTaxInclusive:     pi.IsTaxInclusive,
 		PaidAmount:              pi.PaidAmount,
 		RemainingAmount:         pi.RemainingAmount,
 		Status:                  pi.Status,
