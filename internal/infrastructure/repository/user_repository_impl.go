@@ -106,3 +106,15 @@ func (r *userRepository) Delete(ctx context.Context, id string) error {
 
 	return uow.GetTx(ctx, r.db).Where("id = ?", id).Delete(&entity.User{}).Error
 }
+
+func (r *userRepository) FindByPIN(ctx context.Context, pin string) (*entity.User, error) {
+	var user entity.User
+	err := uow.GetTx(ctx, r.db).Where("pin = ?", pin).First(&user).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &user, nil
+}

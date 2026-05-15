@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"go-trial/internal/delivery/http/dto"
@@ -21,6 +22,7 @@ var (
 	ErrGRItemMismatch       = errors.New("item does not match purchase order item")
 	ErrGRNoItemsReceived    = errors.New("no items received")
 	ErrGRNoRejectReason     = errors.New("reject reason required when qty rejected > 0")
+	ErrOverReceiveNeedsPIN  = errors.New("ERR_OVER_RECEIVE_NEEDS_PIN")
 )
 
 type GoodsReceiptUseCase interface {
@@ -168,6 +170,9 @@ func (u *goodsReceiptUseCaseImpl) Create(ctx context.Context, userID string, req
 		return nil, err
 	}
 
+	isOverReceivedOverride := false
+	var overrideApprovedByID *uuid.UUID
+
 	items := make([]entity.GoodsReceiptItem, len(req.Items))
 	for i, item := range req.Items {
 		poItem, exists := poItemsMap[item.PurchaseOrderItemID.String()]
@@ -177,6 +182,43 @@ func (u *goodsReceiptUseCaseImpl) Create(ctx context.Context, userID string, req
 
 		if item.QtyRejected.GreaterThan(decimal.Zero) && item.RejectReason == nil {
 			return nil, ErrGRNoRejectReason
+		}
+
+		// ── Validasi Sisa Kuantitas & Over-Receiving ─────────────────────────
+		draftQty, err := u.grRepo.GetTotalDraftQtyByPOItemID(ctx, item.PurchaseOrderItemID.String(), nil)
+		if err != nil {
+			return nil, err
+		}
+
+		remainingQty := poItem.QtyOrdered.Sub(poItem.QtyReceived).Sub(draftQty)
+		if item.QtyReceived.GreaterThan(remainingQty) {
+			if req.OverridePIN == nil || *req.OverridePIN == "" {
+				return nil, ErrOverReceiveNeedsPIN
+			}
+
+			// Verifikasi PIN
+			overrideUser, err := u.userRepo.FindByPIN(ctx, *req.OverridePIN)
+			if err != nil {
+				return nil, err
+			}
+			if overrideUser == nil {
+				return nil, errors.New("PIN otorisasi tidak valid")
+			}
+
+			// Cek Role (Supervisor / Kepala Gudang)
+			role := strings.ToUpper(overrideUser.Role)
+			isAuthorized := role == "SUPERVISOR" || role == "KEPALA GUDANG" || role == "KEPALA_GUDANG" || role == "MANAGER" || role == "ADMIN"
+			if !isAuthorized {
+				return nil, errors.New("user pemilik PIN tidak memiliki otoritas untuk override")
+			}
+
+			overrideUserUUID, err := uuid.Parse(overrideUser.ID)
+			if err != nil {
+				return nil, err
+			}
+
+			isOverReceivedOverride = true
+			overrideApprovedByID = &overrideUserUUID
 		}
 
 		items[i] = entity.GoodsReceiptItem{
@@ -203,28 +245,30 @@ func (u *goodsReceiptUseCaseImpl) Create(ctx context.Context, userID string, req
 	}
 
 	gr := &entity.GoodsReceipt{
-		GRNumber:        grNum,
-		PurchaseOrderID: req.PurchaseOrderID,
-		WarehouseID:     req.WarehouseID,
-		ReceiptDate:     req.ReceiptDate,
-		DeliveryNoteNo:  req.DeliveryNoteNo,
-		Status:          entity.GRStatusDraft,
-		ReceivedByID:    userUUID,
-		Notes:           req.Notes,
-		Items:           items,
-		WarehouseName:   warehouse.Name,
-		SupplierName:    po.SupplierName,
-		SupplierCode:    po.SupplierCode,
-		SupplierAddress: po.SupplierAddress,
-		StoreName:       po.StoreName,
-		ReceivedByName:  user.Name,
-		Subtotal:        po.TotalAmount,
-		DiscountAmount:  decimal.Zero,
-		TaxAmount:       decimal.Zero,
-		FreightAmount:   decimal.Zero,
-		OtherCostAmount: decimal.Zero,
-		GrandTotal:      po.TotalAmount,
-		IsTaxInclusive:  false,
+		GRNumber:               grNum,
+		PurchaseOrderID:        req.PurchaseOrderID,
+		WarehouseID:            req.WarehouseID,
+		ReceiptDate:            req.ReceiptDate,
+		DeliveryNoteNo:         req.DeliveryNoteNo,
+		Status:                 entity.GRStatusDraft,
+		ReceivedByID:           userUUID,
+		IsOverReceivedOverride: isOverReceivedOverride,
+		OverrideApprovedByID:   overrideApprovedByID,
+		Notes:                  req.Notes,
+		Items:                  items,
+		WarehouseName:          warehouse.Name,
+		SupplierName:           po.SupplierName,
+		SupplierCode:           po.SupplierCode,
+		SupplierAddress:        po.SupplierAddress,
+		StoreName:              po.StoreName,
+		ReceivedByName:         user.Name,
+		Subtotal:               po.TotalAmount,
+		DiscountAmount:         decimal.Zero,
+		TaxAmount:              decimal.Zero,
+		FreightAmount:          decimal.Zero,
+		OtherCostAmount:        decimal.Zero,
+		GrandTotal:             po.TotalAmount,
+		IsTaxInclusive:         false,
 	}
 
 	if err := gr.GenerateID(); err != nil {
@@ -399,6 +443,9 @@ func (u *goodsReceiptUseCaseImpl) Update(ctx context.Context, userID string, id 
 		poItemsMap[item.ID.String()] = item
 	}
 
+	isOverReceivedOverride := false
+	var overrideApprovedByID *uuid.UUID
+
 	items := make([]entity.GoodsReceiptItem, len(req.Items))
 	for i, item := range req.Items {
 		poItem, exists := poItemsMap[item.PurchaseOrderItemID.String()]
@@ -408,6 +455,44 @@ func (u *goodsReceiptUseCaseImpl) Update(ctx context.Context, userID string, id 
 
 		if item.QtyRejected.GreaterThan(decimal.Zero) && item.RejectReason == nil {
 			return nil, ErrGRNoRejectReason
+		}
+
+		// ── Validasi Sisa Kuantitas & Over-Receiving ─────────────────────────
+		// Exclude current GR ID (id) from draft calculation
+		draftQty, err := u.grRepo.GetTotalDraftQtyByPOItemID(ctx, item.PurchaseOrderItemID.String(), &id)
+		if err != nil {
+			return nil, err
+		}
+
+		remainingQty := poItem.QtyOrdered.Sub(poItem.QtyReceived).Sub(draftQty)
+		if item.QtyReceived.GreaterThan(remainingQty) {
+			if req.OverridePIN == nil || *req.OverridePIN == "" {
+				return nil, ErrOverReceiveNeedsPIN
+			}
+
+			// Verifikasi PIN
+			overrideUser, err := u.userRepo.FindByPIN(ctx, *req.OverridePIN)
+			if err != nil {
+				return nil, err
+			}
+			if overrideUser == nil {
+				return nil, errors.New("PIN otorisasi tidak valid")
+			}
+
+			// Cek Role (Supervisor / Kepala Gudang)
+			role := strings.ToUpper(overrideUser.Role)
+			isAuthorized := role == "SUPERVISOR" || role == "KEPALA GUDANG" || role == "KEPALA_GUDANG" || role == "MANAGER" || role == "ADMIN"
+			if !isAuthorized {
+				return nil, errors.New("user pemilik PIN tidak memiliki otoritas untuk override")
+			}
+
+			overrideUserUUID, err := uuid.Parse(overrideUser.ID)
+			if err != nil {
+				return nil, err
+			}
+
+			isOverReceivedOverride = true
+			overrideApprovedByID = &overrideUserUUID
 		}
 
 		items[i] = entity.GoodsReceiptItem{
@@ -441,6 +526,8 @@ func (u *goodsReceiptUseCaseImpl) Update(ctx context.Context, userID string, id 
 	gr.DeliveryNoteNo = req.DeliveryNoteNo
 	gr.Notes = req.Notes
 	gr.Items = items
+	gr.IsOverReceivedOverride = isOverReceivedOverride
+	gr.OverrideApprovedByID = overrideApprovedByID
 
 	txCtx, err := u.uow.Begin(ctx)
 	if err != nil {
@@ -633,8 +720,10 @@ func toGRDetailResponse(gr *entity.GoodsReceipt) *dto.GoodsReceiptDetailResponse
 		ReceivedByID:    gr.ReceivedByID,
 		ConfirmedByID:   gr.ConfirmedByID,
 		ConfirmedAt:     gr.ConfirmedAt,
-		Notes:           gr.Notes,
-		SupplierName:    gr.SupplierName,
+		Notes:                  gr.Notes,
+		IsOverReceivedOverride: gr.IsOverReceivedOverride,
+		OverrideApprovedByID:   gr.OverrideApprovedByID,
+		SupplierName:           gr.SupplierName,
 		SupplierCode:    gr.SupplierCode,
 		SupplierAddress: gr.SupplierAddress,
 		StoreName:       gr.StoreName,

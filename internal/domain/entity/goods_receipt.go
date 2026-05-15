@@ -67,6 +67,11 @@ type GoodsReceipt struct {
 	GrandTotal      decimal.Decimal `gorm:"type:decimal(19,4);default:0" json:"grand_total"`
 	IsTaxInclusive  bool            `gorm:"default:false" json:"is_tax_inclusive"`
 
+	// ── Override Kuantitas ───────────────────────────────────────────────
+	IsOverReceivedOverride bool       `gorm:"default:false" json:"is_over_received_override"`
+	OverrideApprovedByID   *uuid.UUID `gorm:"type:char(36);index" json:"override_approved_by_id"`
+	OverrideApprovedBy     *User      `gorm:"foreignKey:OverrideApprovedByID" json:"override_approved_by,omitempty"`
+
 	// ── Snapshot Data (Master Data at Time of Transaction) ───────────────
 	SupplierCode    string  `gorm:"type:varchar(20)" json:"supplier_code"`
 	SupplierName    string  `gorm:"type:varchar(150)" json:"supplier_name"`
