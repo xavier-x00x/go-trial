@@ -123,6 +123,7 @@ func setupFinanceRoutes(r fiber.Router, reg *registry.Registry) {
 	setupPurchaseInvoices(r, f)
 	setupPurchasePayments(r, f)
 	setupPurchaseReturns(r, f)
+	setupExpenseVouchers(r, f)
 }
 
 func setupPurchaseInvoices(r fiber.Router, f *registry.FinanceRegistry) {
@@ -315,4 +316,15 @@ func setupPurchaseReturns(r fiber.Router, f *registry.FinanceRegistry) {
 	r.Get("", h.GetAll)
 	r.Get("/:id", h.GetByID)
 	r.Post("/:id/post", h.Post)
+}
+
+func setupExpenseVouchers(r fiber.Router, f *registry.FinanceRegistry) {
+	h := f.ExpenseVoucherHandler
+	r = r.Group("/expense-vouchers")
+	r.Post("", h.Create)
+	r.Get("", h.GetAll)
+	r.Get("/:id", h.GetByID)
+	r.Put("/:id", h.Update)
+	r.Post("/:id/post", h.Post)
+	r.Post("/:id/cancel", h.Cancel)
 }
