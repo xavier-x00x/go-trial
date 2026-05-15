@@ -32,6 +32,7 @@ type PurchaseOrderUseCase interface {
 	GetAllWithPagination(ctx context.Context, meta *dto.MetaRequest) ([]dto.PurchaseOrderListResponse, *entity.Meta, error)
 	Submit(ctx context.Context, userID string, id string) error
 	Approve(ctx context.Context, userID string, id string) error
+	Update(ctx context.Context, userID string, id string, req dto.UpdatePurchaseOrderRequest) (*dto.PurchaseOrderDetailResponse, error)
 	Cancel(ctx context.Context, userID string, id string, reason string) error
 	Resend(ctx context.Context, id string) error
 }
@@ -646,6 +647,88 @@ func (u *purchaseOrderUseCaseImpl) GetAllWithPagination(ctx context.Context, met
 	}
 
 	return toPOListResponses(data), resMeta, nil
+}
+
+func (u *purchaseOrderUseCaseImpl) Update(ctx context.Context, userID string, id string, req dto.UpdatePurchaseOrderRequest) (*dto.PurchaseOrderDetailResponse, error) {
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	po, err := u.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if po == nil {
+		return nil, ErrPurchaseOrderNotFound
+	}
+
+	if po.Status != entity.POStatusDraft {
+		return nil, ErrPOInvalidStatus
+	}
+
+	// Validate ownership
+	if po.CreatedByID != userUUID {
+		return nil, errors.New("unauthorized: only the creator can update the PO")
+	}
+
+	totalAmount := decimal.Zero
+	items := make([]entity.PurchaseOrderItem, len(req.Items))
+	for i, item := range req.Items {
+		qty := decimal.NewFromFloat(item.QtyOrdered)
+		unitPrice := decimal.NewFromFloat(item.UnitPrice)
+		lineSubtotal := qty.Mul(unitPrice)
+		totalAmount = totalAmount.Add(lineSubtotal)
+
+		items[i] = entity.PurchaseOrderItem{
+			PurchaseOrderID:   po.ID,
+			SeqNo:             i + 1,
+			ProductID:         item.ProductID,
+			UOMID:             item.UOMID,
+			QtyOrdered:        qty,
+			UnitPrice:         unitPrice,
+			Subtotal:          lineSubtotal,
+			ProductSupplierID: item.ProductSupplierID,
+			PlanningID:        item.PlanningID,
+			Notes:             item.Notes,
+		}
+		if err := items[i].GenerateID(); err != nil {
+			return nil, err
+		}
+	}
+
+	po.ReferenceNo = req.ReferenceNo
+	po.ExpectedDelivery = req.ExpectedDelivery
+	po.PaymentTermDays = req.PaymentTermDays
+	po.PaymentMode = req.PaymentMode
+	po.Notes = req.Notes
+	po.SupplierNotes = req.SupplierNotes
+	po.TotalAmount = totalAmount
+	po.Items = items
+
+	txCtx, err := u.uow.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer u.uow.Rollback(txCtx)
+
+	// Delete old items
+	if err := u.repo.DeleteItemsByPurchaseOrderID(txCtx, id); err != nil {
+		return nil, err
+	}
+
+	// Update header and save new items
+	if err := u.repo.Update(txCtx, po); err != nil {
+		return nil, err
+	}
+
+	if err := u.uow.Commit(txCtx); err != nil {
+		return nil, err
+	}
+
+	// Reload for response snapshots
+	updatedPO, _ := u.repo.FindByID(ctx, id)
+	return toPODetailResponse(updatedPO), nil
 }
 
 func (u *purchaseOrderUseCaseImpl) Submit(ctx context.Context, userID string, id string) error {

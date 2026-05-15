@@ -229,6 +229,7 @@ func setupPurchaseOrderRoutes(r fiber.Router, reg *registry.Registry) {
 	r.Get("/store/:storeId", h.GetByStoreID)
 	r.Get("/store/:storeId/pending", h.GetPendingByStoreID)
 	r.Get("/:id", h.GetByID)
+	r.Put("/:id", h.Update)
 	r.Post("/:id/submit", h.Submit)
 	r.Post("/:id/approve", h.Approve)
 	r.Post("/cancel", h.Cancel)

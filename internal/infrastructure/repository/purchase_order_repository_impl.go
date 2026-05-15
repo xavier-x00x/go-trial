@@ -130,3 +130,7 @@ func (r *purchaseOrderRepository) FindAllWithPagination(ctx context.Context, fil
 func (r *purchaseOrderRepository) Delete(ctx context.Context, id string) error {
 	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&entity.PurchaseOrder{}).Error
 }
+
+func (r *purchaseOrderRepository) DeleteItemsByPurchaseOrderID(ctx context.Context, poID string) error {
+	return uow.GetTx(ctx, r.db).Where("purchase_order_id = ?", poID).Delete(&entity.PurchaseOrderItem{}).Error
+}

@@ -91,6 +91,24 @@ func (h *PurchaseOrderHandler) GetPendingByStoreID(c *fiber.Ctx) error {
 	return response.Success(c, fiber.StatusOK, "Pending purchase orders retrieved successfully", result)
 }
 
+func (h *PurchaseOrderHandler) Update(c *fiber.Ctx) error {
+	id := c.Params("id")
+	var req dto.UpdatePurchaseOrderRequest
+	if err := c.BodyParser(&req); err != nil {
+		return response.Error(c, fiber.StatusBadRequest, "Invalid request body")
+	}
+	if errs := h.v.Validate(req); len(errs) > 0 {
+		return response.ValidationError(c, "Validation failed", errs)
+	}
+
+	userID := getUserIDFromPOContext(c)
+	result, err := h.uc.Update(c.UserContext(), userID, id, req)
+	if err != nil {
+		return response.Error(c, fiber.StatusInternalServerError, err.Error())
+	}
+	return response.Success(c, fiber.StatusOK, "Purchase order updated successfully", result)
+}
+
 func (h *PurchaseOrderHandler) Submit(c *fiber.Ctx) error {
 	id := c.Params("id")
 	userID := getUserIDFromPOContext(c)
