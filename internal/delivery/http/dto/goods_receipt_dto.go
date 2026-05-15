@@ -20,6 +20,14 @@ type CreateGoodsReceiptRequest struct {
 	Items           []CreateGoodsReceiptItemInput `json:"items" validate:"required,min=1,dive"`
 }
 
+// UpdateGoodsReceiptRequest digunakan untuk mengubah GR yang masih DRAFT.
+type UpdateGoodsReceiptRequest struct {
+	ReceiptDate    time.Time                     `json:"receipt_date" validate:"required"`
+	DeliveryNoteNo *string                       `json:"delivery_note_no" validate:"omitempty,max=50"`
+	Notes          *string                       `json:"notes"`
+	Items          []CreateGoodsReceiptItemInput `json:"items" validate:"required,min=1,dive"`
+}
+
 type CreateGoodsReceiptItemInput struct {
 	PurchaseOrderItemID uuid.UUID       `json:"purchase_order_item_id" validate:"required"`
 	ProductID           uuid.UUID       `json:"product_id" validate:"required"`

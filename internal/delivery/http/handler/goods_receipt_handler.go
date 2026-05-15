@@ -46,6 +46,24 @@ func (h *GoodsReceiptHandler) Create(c *fiber.Ctx) error {
 	return response.Success(c, fiber.StatusCreated, "Goods receipt created successfully", result)
 }
 
+func (h *GoodsReceiptHandler) Update(c *fiber.Ctx) error {
+	var req dto.UpdateGoodsReceiptRequest
+	if err := c.BodyParser(&req); err != nil {
+		return response.Error(c, fiber.StatusBadRequest, "Invalid request body")
+	}
+	if errs := h.v.Validate(req); len(errs) > 0 {
+		return response.ValidationError(c, "Validation failed", errs)
+	}
+
+	id := c.Params("id")
+	userID := getUserIDFromGRContext(c)
+	result, err := h.uc.Update(c.UserContext(), userID, id, req)
+	if err != nil {
+		return response.Error(c, fiber.StatusInternalServerError, err.Error())
+	}
+	return response.Success(c, fiber.StatusOK, "Goods receipt updated successfully", result)
+}
+
 func (h *GoodsReceiptHandler) Confirm(c *fiber.Ctx) error {
 	var req dto.ConfirmGoodsReceiptRequest
 	if err := c.BodyParser(&req); err != nil {

@@ -15,4 +15,5 @@ type GoodsReceiptRepository interface {
 	FindAllWithPagination(ctx context.Context, filter entity.QueryFilter) ([]entity.GoodsReceipt, *entity.Meta, error)
 	Update(ctx context.Context, gr *entity.GoodsReceipt) error
 	Delete(ctx context.Context, id string) error
+	DeleteItemsByGoodsReceiptID(ctx context.Context, grID string) error
 }
