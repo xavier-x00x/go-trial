@@ -25,12 +25,13 @@ type CreatePurchasePaymentRequest struct {
 }
 
 type CreatePurchasePaymentItemInput struct {
-	PurchaseInvoiceID uuid.UUID       `json:"purchase_invoice_id" validate:"required"`
-	PaidAmount        decimal.Decimal `json:"paid_amount" validate:"required,min=0"`
+	PurchaseInvoiceID *uuid.UUID      `json:"purchase_invoice_id"`
+	PurchaseReturnID  *uuid.UUID      `json:"purchase_return_id"`
+	PaidAmount        decimal.Decimal `json:"paid_amount" validate:"required"`
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Request: Post & Void
+// Response: Post & Void
 // ──────────────────────────────────────────────────────────────────────────────
 
 type PostPurchasePaymentRequest struct {
@@ -87,8 +88,10 @@ type PurchasePaymentDetailResponse struct {
 type PurchasePaymentItemResponse struct {
 	ID                uuid.UUID       `json:"id"`
 	SeqNo             int             `json:"seq_no"`
-	PurchaseInvoiceID uuid.UUID       `json:"purchase_invoice_id"`
-	InvoiceNumber     string          `json:"invoice_number"`
-	InvoiceAmount     decimal.Decimal `json:"invoice_amount"`
+	PurchaseInvoiceID *uuid.UUID      `json:"purchase_invoice_id,omitempty"`
+	InvoiceNumber     string          `json:"invoice_number,omitempty"`
+	PurchaseReturnID  *uuid.UUID      `json:"purchase_return_id,omitempty"`
+	ReturnNumber      string          `json:"return_number,omitempty"`
+	DocumentAmount    decimal.Decimal `json:"document_amount"`
 	PaidAmount        decimal.Decimal `json:"paid_amount"`
 }

@@ -19,6 +19,7 @@ type FinanceRegistry struct {
 	TaxHandler             *handler.TaxHandler
 	PurchaseInvoiceHandler *handler.PurchaseInvoiceHandler
 	PurchasePaymentHandler *handler.PurchasePaymentHandler
+	PurchaseReturnHandler  *handler.PurchaseReturnHandler
 }
 
 func NewFinanceRegistry(db *gorm.DB, cfg *config.Config) *FinanceRegistry {
@@ -36,6 +37,8 @@ func NewFinanceRegistry(db *gorm.DB, cfg *config.Config) *FinanceRegistry {
 	monthlyAPBalanceRepo := repository.NewMonthlyAPBalanceRepository(db)
 	purchaseInvoiceRepo := repository.NewPurchaseInvoiceRepository(db)
 	purchasePaymentRepo := repository.NewPurchasePaymentRepository(db)
+	purchaseReturnRepo := repository.NewPurchaseReturnRepository(db)
+	inventoryStockRepo := repository.NewInventoryStockRepository(db)
 
 	coaUseCase := usecase.NewChartOfAccountUseCase(coaRepo, uow)
 	customerUseCase := usecase.NewCustomerUseCase(customerRepo, coaRepo, uow)
@@ -55,6 +58,7 @@ func NewFinanceRegistry(db *gorm.DB, cfg *config.Config) *FinanceRegistry {
 	purchasePaymentUseCase := usecase.NewPurchasePaymentUseCase(usecase.PurchasePaymentConfig{
 		Repo:                    purchasePaymentRepo,
 		PurchaseInvoiceRepo:    purchaseInvoiceRepo,
+		PurchaseReturnRepo:     purchaseReturnRepo,
 		SupplierRepo:            supplierRepo,
 		UserRepo:                userRepo,
 		ChartOfAccountRepo:      coaRepo,
@@ -63,6 +67,14 @@ func NewFinanceRegistry(db *gorm.DB, cfg *config.Config) *FinanceRegistry {
 		DB:                      db,
 		Uow:                     uow,
 	})
+	purchaseReturnUseCase := usecase.NewPurchaseReturnUseCase(
+		purchaseReturnRepo,
+		purchaseInvoiceRepo,
+		userRepo,
+		repository.NewStoreRepository(db),
+		inventoryStockRepo,
+		uow,
+	)
 
 	return &FinanceRegistry{
 		Handler:                handler.NewCOAHandler(coaUseCase, v),
@@ -72,5 +84,6 @@ func NewFinanceRegistry(db *gorm.DB, cfg *config.Config) *FinanceRegistry {
 		TaxHandler:            handler.NewTaxHandler(taxUseCase, v),
 		PurchaseInvoiceHandler: handler.NewPurchaseInvoiceHandler(purchaseInvoiceUseCase),
 		PurchasePaymentHandler: handler.NewPurchasePaymentHandler(purchasePaymentUseCase),
+		PurchaseReturnHandler:  handler.NewPurchaseReturnHandler(purchaseReturnUseCase),
 	}
 }

@@ -34,6 +34,7 @@ type PurchasePaymentUseCase interface {
 type PurchasePaymentConfig struct {
 	Repo                    repository.PurchasePaymentRepository
 	PurchaseInvoiceRepo    repository.PurchaseInvoiceRepository
+	PurchaseReturnRepo     repository.PurchaseReturnRepository
 	SupplierRepo            repository.SupplierRepository
 	UserRepo                repository.UserRepository
 	ChartOfAccountRepo      repository.ChartOfAccountRepository
@@ -50,6 +51,7 @@ type PurchasePaymentConfig struct {
 type purchasePaymentUseCaseImpl struct {
 	repo                    repository.PurchasePaymentRepository
 	purchaseInvoiceRepo    repository.PurchaseInvoiceRepository
+	purchaseReturnRepo     repository.PurchaseReturnRepository
 	supplierRepo            repository.SupplierRepository
 	userRepo                repository.UserRepository
 	chartOfAccountRepo      repository.ChartOfAccountRepository
@@ -67,6 +69,7 @@ func NewPurchasePaymentUseCase(cfg PurchasePaymentConfig) PurchasePaymentUseCase
 	return &purchasePaymentUseCaseImpl{
 		repo:                    cfg.Repo,
 		purchaseInvoiceRepo:    cfg.PurchaseInvoiceRepo,
+		purchaseReturnRepo:     cfg.PurchaseReturnRepo,
 		supplierRepo:            cfg.SupplierRepo,
 		userRepo:                cfg.UserRepo,
 		chartOfAccountRepo:      cfg.ChartOfAccountRepo,
@@ -120,20 +123,44 @@ func (u *purchasePaymentUseCaseImpl) Create(ctx context.Context, userID string, 
 	}
 
 	var totalAmount decimal.Decimal
+	var totalInvoice decimal.Decimal
+	var totalReturn decimal.Decimal
 
 	items := make([]entity.PurchasePaymentItem, len(req.Items))
 	for i, item := range req.Items {
-		pi, err := u.purchaseInvoiceRepo.FindByID(ctx, item.PurchaseInvoiceID.String())
-		if err != nil || pi == nil {
-			return nil, fmt.Errorf("purchase invoice %s not found", item.PurchaseInvoiceID)
-		}
+		var docAmount decimal.Decimal
+		if item.PurchaseInvoiceID != nil {
+			pi, err := u.purchaseInvoiceRepo.FindByID(ctx, item.PurchaseInvoiceID.String())
+			if err != nil || pi == nil {
+				return nil, fmt.Errorf("purchase invoice %s not found", item.PurchaseInvoiceID)
+			}
 
-		if pi.Status != entity.PurchaseInvoiceStatusPosted && pi.Status != entity.PurchaseInvoiceStatusPartiallyPaid {
-			return nil, fmt.Errorf("invoice %s is not payable (status: %s)", pi.InvoiceNumber, pi.Status)
-		}
+			if pi.Status != entity.PurchaseInvoiceStatusPosted && pi.Status != entity.PurchaseInvoiceStatusPartiallyPaid {
+				return nil, fmt.Errorf("invoice %s is not payable (status: %s)", pi.InvoiceNumber, pi.Status)
+			}
 
-		if item.PaidAmount.GreaterThan(pi.RemainingAmount) {
-			return nil, fmt.Errorf("paid amount exceeds remaining amount for invoice %s", pi.InvoiceNumber)
+			if item.PaidAmount.GreaterThan(pi.RemainingAmount) {
+				return nil, fmt.Errorf("paid amount exceeds remaining amount for invoice %s", pi.InvoiceNumber)
+			}
+			docAmount = pi.GrandTotal
+			totalInvoice = totalInvoice.Add(item.PaidAmount)
+		} else if item.PurchaseReturnID != nil {
+			pr, err := u.purchaseReturnRepo.FindByID(ctx, item.PurchaseReturnID.String())
+			if err != nil || pr == nil {
+				return nil, fmt.Errorf("purchase return %s not found", item.PurchaseReturnID)
+			}
+
+			if pr.Status != entity.PRStatusPosted {
+				return nil, fmt.Errorf("return %s is not posted", pr.ReturnNumber)
+			}
+
+			if item.PaidAmount.Abs().GreaterThan(pr.RemainingAmount) {
+				return nil, fmt.Errorf("offset amount exceeds remaining amount for return %s", pr.ReturnNumber)
+			}
+			docAmount = pr.GrandTotal
+			totalReturn = totalReturn.Add(item.PaidAmount.Abs())
+		} else {
+			return nil, errors.New("either purchase_invoice_id or purchase_return_id must be provided")
 		}
 
 		totalAmount = totalAmount.Add(item.PaidAmount)
@@ -141,9 +168,14 @@ func (u *purchasePaymentUseCaseImpl) Create(ctx context.Context, userID string, 
 		items[i] = entity.PurchasePaymentItem{
 			SeqNo:             i + 1,
 			PurchaseInvoiceID: item.PurchaseInvoiceID,
-			InvoiceAmount:     pi.GrandTotal,
+			PurchaseReturnID:  item.PurchaseReturnID,
+			DocumentAmount:    docAmount,
 			PaidAmount:        item.PaidAmount,
 		}
+	}
+
+	if totalReturn.GreaterThan(totalInvoice) {
+		return nil, errors.New("total return amount cannot exceed total invoice amount")
 	}
 
 	if req.PaymentMode == "GIRO" && req.GiroNumber == nil {
@@ -263,26 +295,38 @@ func (u *purchasePaymentUseCaseImpl) Post(ctx context.Context, userID string, id
 	tx := uow.GetTx(txCtx, u.db)
 
 	for _, item := range pp.Items {
-		pi, err := u.purchaseInvoiceRepo.FindByID(txCtx, item.PurchaseInvoiceID.String())
-		if err != nil || pi == nil {
-			return fmt.Errorf("purchase invoice not found: %s", item.PurchaseInvoiceID)
-		}
+		if item.PurchaseInvoiceID != nil {
+			pi, err := u.purchaseInvoiceRepo.FindByID(txCtx, item.PurchaseInvoiceID.String())
+			if err != nil || pi == nil {
+				return fmt.Errorf("purchase invoice not found: %s", item.PurchaseInvoiceID)
+			}
 
-		pi.PaidAmount = pi.PaidAmount.Add(item.PaidAmount)
-		pi.RemainingAmount = pi.RemainingAmount.Sub(item.PaidAmount)
+			pi.PaidAmount = pi.PaidAmount.Add(item.PaidAmount)
+			pi.RemainingAmount = pi.RemainingAmount.Sub(item.PaidAmount)
 
-		if pi.RemainingAmount.IsZero() || pi.RemainingAmount.LessThan(decimal.Zero) {
-			pi.Status = entity.PurchaseInvoiceStatusPaid
-		} else {
-			pi.Status = entity.PurchaseInvoiceStatusPartiallyPaid
-		}
+			if pi.RemainingAmount.IsZero() || pi.RemainingAmount.LessThan(decimal.Zero) {
+				pi.Status = entity.PurchaseInvoiceStatusPaid
+			} else {
+				pi.Status = entity.PurchaseInvoiceStatusPartiallyPaid
+			}
 
-		if err := u.purchaseInvoiceRepo.Update(txCtx, pi); err != nil {
-			return err
+			if err := u.purchaseInvoiceRepo.Update(txCtx, pi); err != nil {
+				return err
+			}
+		} else if item.PurchaseReturnID != nil {
+			pr, err := u.purchaseReturnRepo.FindByID(txCtx, item.PurchaseReturnID.String())
+			if err != nil || pr == nil {
+				return fmt.Errorf("purchase return not found: %s", item.PurchaseReturnID)
+			}
+
+			pr.RemainingAmount = pr.RemainingAmount.Sub(item.PaidAmount.Abs())
+			if err := u.purchaseReturnRepo.Update(txCtx, pr); err != nil {
+				return err
+			}
 		}
 
 		periodMonth := pp.PaymentDate.Format("2006-01")
-		apBalance, err := u.monthlyAPBalanceRepo.FindByPeriodSupplier(txCtx, periodMonth, pi.SupplierID.String())
+		apBalance, err := u.monthlyAPBalanceRepo.FindByPeriodSupplier(txCtx, periodMonth, pp.SupplierID.String())
 		if err != nil {
 			return err
 		}
@@ -290,7 +334,7 @@ func (u *purchasePaymentUseCaseImpl) Post(ctx context.Context, userID string, id
 		if apBalance == nil {
 			apBalance = &entity.MonthlyAPBalance{
 				PeriodMonth:      periodMonth,
-				SupplierID:       pi.SupplierID,
+				SupplierID:       pp.SupplierID,
 				BeginningBalance: decimal.Zero,
 				TotalDebit:       decimal.Zero,
 				TotalCredit:      decimal.Zero,
@@ -359,26 +403,38 @@ func (u *purchasePaymentUseCaseImpl) Void(ctx context.Context, userID string, id
 	tx := uow.GetTx(txCtx, u.db)
 
 	for _, item := range pp.Items {
-		pi, err := u.purchaseInvoiceRepo.FindByID(txCtx, item.PurchaseInvoiceID.String())
-		if err != nil || pi == nil {
-			return fmt.Errorf("purchase invoice not found: %s", item.PurchaseInvoiceID)
-		}
+		if item.PurchaseInvoiceID != nil {
+			pi, err := u.purchaseInvoiceRepo.FindByID(txCtx, item.PurchaseInvoiceID.String())
+			if err != nil || pi == nil {
+				return fmt.Errorf("purchase invoice not found: %s", item.PurchaseInvoiceID)
+			}
 
-		pi.PaidAmount = pi.PaidAmount.Sub(item.PaidAmount)
-		pi.RemainingAmount = pi.RemainingAmount.Add(item.PaidAmount)
+			pi.PaidAmount = pi.PaidAmount.Sub(item.PaidAmount)
+			pi.RemainingAmount = pi.RemainingAmount.Add(item.PaidAmount)
 
-		if pi.RemainingAmount.GreaterThanOrEqual(pi.GrandTotal) {
-			pi.Status = entity.PurchaseInvoiceStatusPosted
-		} else {
-			pi.Status = entity.PurchaseInvoiceStatusPartiallyPaid
-		}
+			if pi.RemainingAmount.GreaterThanOrEqual(pi.GrandTotal) {
+				pi.Status = entity.PurchaseInvoiceStatusPosted
+			} else {
+				pi.Status = entity.PurchaseInvoiceStatusPartiallyPaid
+			}
 
-		if err := u.purchaseInvoiceRepo.Update(txCtx, pi); err != nil {
-			return err
+			if err := u.purchaseInvoiceRepo.Update(txCtx, pi); err != nil {
+				return err
+			}
+		} else if item.PurchaseReturnID != nil {
+			pr, err := u.purchaseReturnRepo.FindByID(txCtx, item.PurchaseReturnID.String())
+			if err != nil || pr == nil {
+				return fmt.Errorf("purchase return not found: %s", item.PurchaseReturnID)
+			}
+
+			pr.RemainingAmount = pr.RemainingAmount.Add(item.PaidAmount.Abs())
+			if err := u.purchaseReturnRepo.Update(txCtx, pr); err != nil {
+				return err
+			}
 		}
 
 		periodMonth := pp.PaymentDate.Format("2006-01")
-		apBalance, err := u.monthlyAPBalanceRepo.FindByPeriodSupplier(txCtx, periodMonth, pi.SupplierID.String())
+		apBalance, err := u.monthlyAPBalanceRepo.FindByPeriodSupplier(txCtx, periodMonth, pp.SupplierID.String())
 		if err != nil {
 			return err
 		}
@@ -487,15 +543,21 @@ func toPPDetailResponse(pp *entity.PurchasePayment) *dto.PurchasePaymentDetailRe
 	items := make([]dto.PurchasePaymentItemResponse, len(pp.Items))
 	for i, item := range pp.Items {
 		invoiceNum := ""
-		if item.PurchaseInvoiceID != uuid.Nil {
+		if item.PurchaseInvoiceID != nil {
 			invoiceNum = item.PurchaseInvoice.InvoiceNumber
+		}
+		returnNum := ""
+		if item.PurchaseReturnID != nil {
+			returnNum = item.PurchaseReturn.ReturnNumber
 		}
 		items[i] = dto.PurchasePaymentItemResponse{
 			ID:                item.ID,
 			SeqNo:             item.SeqNo,
 			PurchaseInvoiceID: item.PurchaseInvoiceID,
 			InvoiceNumber:     invoiceNum,
-			InvoiceAmount:     item.InvoiceAmount,
+			PurchaseReturnID:  item.PurchaseReturnID,
+			ReturnNumber:      returnNum,
+			DocumentAmount:    item.DocumentAmount,
 			PaidAmount:        item.PaidAmount,
 		}
 	}

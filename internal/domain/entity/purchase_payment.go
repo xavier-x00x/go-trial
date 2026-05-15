@@ -87,11 +87,13 @@ type PurchasePaymentItem struct {
 	PurchasePayment   PurchasePayment `gorm:"foreignKey:PurchasePaymentID" json:"purchase_payment,omitempty"`
 	SeqNo             int             `gorm:"not null" json:"seq_no"`
 
-	// ── Faktur yang Dibayar ──────────────────────────────────────────────
-	PurchaseInvoiceID uuid.UUID       `gorm:"type:char(36);not null;index" json:"purchase_invoice_id"`
-	PurchaseInvoice   PurchaseInvoice `gorm:"foreignKey:PurchaseInvoiceID" json:"purchase_invoice,omitempty"`
+	// ── Dokumen yang Dibayar / Di-offset ────────────────────────────────
+	PurchaseInvoiceID *uuid.UUID       `gorm:"type:char(36);index" json:"purchase_invoice_id"`
+	PurchaseInvoice   *PurchaseInvoice `gorm:"foreignKey:PurchaseInvoiceID" json:"purchase_invoice,omitempty"`
+	PurchaseReturnID  *uuid.UUID       `gorm:"type:char(36);index" json:"purchase_return_id"`
+	PurchaseReturn    *PurchaseReturn  `gorm:"foreignKey:PurchaseReturnID" json:"purchase_return,omitempty"`
 
 	// ── Alokasi Nilai ────────────────────────────────────────────────────
-	InvoiceAmount decimal.Decimal `gorm:"type:decimal(19,4);not null" json:"invoice_amount"` // Snapshot total hutang faktur (untuk referensi)
-	PaidAmount    decimal.Decimal `gorm:"type:decimal(19,4);not null" json:"paid_amount"`    // Nilai yang dibayarkan ke faktur ini
+	DocumentAmount decimal.Decimal `gorm:"type:decimal(19,4);not null" json:"document_amount"` // Snapshot total hutang/retur (untuk referensi)
+	PaidAmount     decimal.Decimal `gorm:"type:decimal(19,4);not null" json:"paid_amount"`     // Nilai yang dialokasikan (positif untuk Invoice, negatif untuk Return)
 }
