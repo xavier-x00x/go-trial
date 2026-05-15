@@ -26,6 +26,7 @@ var (
 type GoodsReceiptUseCase interface {
 	Create(ctx context.Context, userID string, req dto.CreateGoodsReceiptRequest) (*dto.GoodsReceiptDetailResponse, error)
 	Confirm(ctx context.Context, userID string, id string, req dto.ConfirmGoodsReceiptRequest) error
+	Update(ctx context.Context, userID string, id string, req dto.UpdateGoodsReceiptRequest) (*dto.GoodsReceiptDetailResponse, error)
 	Cancel(ctx context.Context, userID string, id string, reason string) error
 	GetByID(ctx context.Context, id string) (*dto.GoodsReceiptDetailResponse, error)
 	GetByPurchaseOrderID(ctx context.Context, poID string) ([]dto.GoodsReceiptListResponse, error)
@@ -376,6 +377,96 @@ func (u *goodsReceiptUseCaseImpl) Confirm(ctx context.Context, userID string, id
 	}
 
 	return u.uow.Commit(txCtx)
+}
+
+func (u *goodsReceiptUseCaseImpl) Update(ctx context.Context, userID string, id string, req dto.UpdateGoodsReceiptRequest) (*dto.GoodsReceiptDetailResponse, error) {
+	gr, err := u.grRepo.FindByID(ctx, id)
+	if err != nil || gr == nil {
+		return nil, ErrGoodsReceiptNotFound
+	}
+
+	if gr.Status != entity.GRStatusDraft {
+		return nil, ErrGRInvalidStatus
+	}
+
+	po, err := u.purchaseOrderRepo.FindByID(ctx, gr.PurchaseOrderID.String())
+	if err != nil || po == nil {
+		return nil, ErrPurchaseOrderNotFound
+	}
+
+	poItemsMap := make(map[string]entity.PurchaseOrderItem)
+	for _, item := range po.Items {
+		poItemsMap[item.ID.String()] = item
+	}
+
+	items := make([]entity.GoodsReceiptItem, len(req.Items))
+	for i, item := range req.Items {
+		poItem, exists := poItemsMap[item.PurchaseOrderItemID.String()]
+		if !exists {
+			return nil, ErrGRItemMismatch
+		}
+
+		if item.QtyRejected.GreaterThan(decimal.Zero) && item.RejectReason == nil {
+			return nil, ErrGRNoRejectReason
+		}
+
+		items[i] = entity.GoodsReceiptItem{
+			GoodsReceiptID:      gr.ID,
+			SeqNo:               i + 1,
+			PurchaseOrderItemID: item.PurchaseOrderItemID,
+			ProductID:           item.ProductID,
+			UOMID:               item.UOMID,
+			QtyOrdered:          poItem.QtyOrdered,
+			QtyReceived:         item.QtyReceived,
+			QtyRejected:         item.QtyRejected,
+			UnitPrice:           poItem.UnitPrice,
+			Discount1Pct:        decimal.Zero,
+			Discount2Pct:        decimal.Zero,
+			Discount3Pct:        decimal.Zero,
+			DiscountAmount:      decimal.Zero,
+			TotalDiscountAmount: decimal.Zero,
+			TaxPct:              decimal.Zero,
+			TaxAmount:           decimal.Zero,
+			LandedCostAmount:    decimal.Zero,
+			NetUnitPrice:        poItem.UnitPrice,
+			RejectReason:        item.RejectReason,
+			Notes:               item.Notes,
+		}
+		if err := items[i].GenerateID(); err != nil {
+			return nil, err
+		}
+	}
+
+	gr.ReceiptDate = req.ReceiptDate
+	gr.DeliveryNoteNo = req.DeliveryNoteNo
+	gr.Notes = req.Notes
+	gr.Items = items
+
+	txCtx, err := u.uow.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err != nil {
+			_ = u.uow.Rollback(txCtx)
+		}
+	}()
+
+	// Delete old items
+	if err := u.grRepo.DeleteItemsByGoodsReceiptID(txCtx, id); err != nil {
+		return nil, err
+	}
+
+	// Update header and save new items
+	if err := u.grRepo.Update(txCtx, gr); err != nil {
+		return nil, err
+	}
+
+	if err := u.uow.Commit(txCtx); err != nil {
+		return nil, err
+	}
+
+	return toGRDetailResponse(gr), nil
 }
 
 func (u *goodsReceiptUseCaseImpl) Cancel(ctx context.Context, userID string, id string, reason string) error {

@@ -103,3 +103,7 @@ func (r *goodsReceiptRepository) FindAllWithPagination(ctx context.Context, filt
 func (r *goodsReceiptRepository) Delete(ctx context.Context, id string) error {
 	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&entity.GoodsReceipt{}).Error
 }
+
+func (r *goodsReceiptRepository) DeleteItemsByGoodsReceiptID(ctx context.Context, grID string) error {
+	return uow.GetTx(ctx, r.db).Where("goods_receipt_id = ?", grID).Delete(&entity.GoodsReceiptItem{}).Error
+}

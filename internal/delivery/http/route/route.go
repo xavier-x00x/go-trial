@@ -261,6 +261,7 @@ func setupGoodsReceiptRoutes(r fiber.Router, reg *registry.Registry) {
 	r.Get("/po/:poId", h.GetByPurchaseOrderID)
 	r.Get("/warehouse/:warehouseId", h.GetByWarehouseID)
 	r.Get("/:id", h.GetByID)
+	r.Put("/:id", h.Update)
 	r.Post("/:id/confirm", h.Confirm)
 	r.Post("/:id/cancel", h.Cancel)
 }
