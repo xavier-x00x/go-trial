@@ -20,6 +20,7 @@ type FinanceRegistry struct {
 	PurchaseInvoiceHandler *handler.PurchaseInvoiceHandler
 	PurchasePaymentHandler *handler.PurchasePaymentHandler
 	PurchaseReturnHandler  *handler.PurchaseReturnHandler
+	ExpenseVoucherHandler  *handler.ExpenseVoucherHandler
 }
 
 func NewFinanceRegistry(db *gorm.DB, cfg *config.Config) *FinanceRegistry {
@@ -39,6 +40,7 @@ func NewFinanceRegistry(db *gorm.DB, cfg *config.Config) *FinanceRegistry {
 	purchasePaymentRepo := repository.NewPurchasePaymentRepository(db)
 	purchaseReturnRepo := repository.NewPurchaseReturnRepository(db)
 	inventoryStockRepo := repository.NewInventoryStockRepository(db)
+	expenseVoucherRepo := repository.NewExpenseVoucherRepository(db)
 
 	coaUseCase := usecase.NewChartOfAccountUseCase(coaRepo, uow)
 	customerUseCase := usecase.NewCustomerUseCase(customerRepo, coaRepo, uow)
@@ -75,6 +77,14 @@ func NewFinanceRegistry(db *gorm.DB, cfg *config.Config) *FinanceRegistry {
 		inventoryStockRepo,
 		uow,
 	)
+	expenseVoucherUseCase := usecase.NewExpenseVoucherUseCase(
+		expenseVoucherRepo,
+		coaRepo,
+		userRepo,
+		numberSequenceRepo,
+		uow,
+		db,
+	)
 
 	return &FinanceRegistry{
 		Handler:                handler.NewCOAHandler(coaUseCase, v),
@@ -85,5 +95,6 @@ func NewFinanceRegistry(db *gorm.DB, cfg *config.Config) *FinanceRegistry {
 		PurchaseInvoiceHandler: handler.NewPurchaseInvoiceHandler(purchaseInvoiceUseCase),
 		PurchasePaymentHandler: handler.NewPurchasePaymentHandler(purchasePaymentUseCase),
 		PurchaseReturnHandler:  handler.NewPurchaseReturnHandler(purchaseReturnUseCase),
+		ExpenseVoucherHandler:  handler.NewExpenseVoucherHandler(expenseVoucherUseCase, v),
 	}
 }
