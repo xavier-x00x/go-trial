@@ -29,6 +29,12 @@ type CreateMasterDataProposalRequest struct {
 	Items      []CreateMasterDataProposalItemInput `json:"items" validate:"required,min=1,dive"`
 }
 
+// UpdateMasterDataProposalRequest digunakan untuk mengubah proposal yang masih PENDING.
+type UpdateMasterDataProposalRequest struct {
+	Reason string                              `json:"reason" validate:"omitempty"`
+	Items  []CreateMasterDataProposalItemInput `json:"items" validate:"required,min=1,dive"`
+}
+
 // CreateMasterDataProposalItemInput adalah input per baris item dalam satu dokumen proposal.
 type CreateMasterDataProposalItemInput struct {
 	EntityID    *uuid.UUID `json:"entity_id"`                        // Wajib diisi jika ActionType = UPDATE atau DELETE

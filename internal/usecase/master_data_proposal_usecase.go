@@ -31,6 +31,7 @@ type MasterDataProposalUseCase interface {
 	GetByEntityType(ctx context.Context, entityType, status string) ([]dto.MasterDataProposalListResponse, error)
 	GetByGroup(ctx context.Context, groupID string) ([]dto.MasterDataProposalDetailResponse, error)
 	Review(ctx context.Context, userID string, id string, req dto.ReviewMasterDataProposalRequest) (*dto.MasterDataProposalDetailResponse, error)
+	Update(ctx context.Context, userID string, id string, req dto.UpdateMasterDataProposalRequest) (*dto.MasterDataProposalDetailResponse, error)
 	Execute(ctx context.Context, id string) error
 	BulkLinkProductSupplier(ctx context.Context, userID string, req dto.BulkCreateProductSupplierProposalRequest) (*dto.BulkProposalResponse, error)
 }
@@ -275,6 +276,73 @@ func (u *masterDataProposalUseCaseImpl) Review(ctx context.Context, userID strin
 	}
 	defer u.uow.Rollback(txCtx)
 
+	if err := u.repo.Update(txCtx, proposal); err != nil {
+		return nil, err
+	}
+
+	if err := u.uow.Commit(txCtx); err != nil {
+		return nil, err
+	}
+
+	return toMasterDataProposalDetailResponse(proposal), nil
+}
+
+func (u *masterDataProposalUseCaseImpl) Update(ctx context.Context, userID string, id string, req dto.UpdateMasterDataProposalRequest) (*dto.MasterDataProposalDetailResponse, error) {
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	proposal, err := u.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if proposal == nil {
+		return nil, ErrProposalNotFound
+	}
+
+	if proposal.Status != entity.ProposalStatusPending {
+		return nil, ErrProposalNotPending
+	}
+
+	// Validate ownership
+	if proposal.ProposedByID != userUUID {
+		return nil, errors.New("unauthorized: only the proposer can update the proposal")
+	}
+
+	items := make([]entity.MasterDataProposalItem, len(req.Items))
+	for i, item := range req.Items {
+		payloadJSON, err := json.Marshal(item)
+		if err != nil {
+			return nil, err
+		}
+		items[i] = entity.MasterDataProposalItem{
+			ProposalID:  proposal.ID,
+			SeqNo:       i + 1,
+			EntityID:    item.EntityID,
+			PayloadJSON: string(payloadJSON),
+		}
+		if err := items[i].GenerateID(); err != nil {
+			return nil, err
+		}
+	}
+
+	proposal.Reason = req.Reason
+	proposal.TotalItems = len(items)
+	proposal.Items = items
+
+	txCtx, err := u.uow.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer u.uow.Rollback(txCtx)
+
+	// Delete old items
+	if err := u.repo.DeleteItemsByProposalID(txCtx, id); err != nil {
+		return nil, err
+	}
+
+	// Save header and new items
 	if err := u.repo.Update(txCtx, proposal); err != nil {
 		return nil, err
 	}
