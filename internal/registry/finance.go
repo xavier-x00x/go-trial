@@ -48,14 +48,17 @@ func NewFinanceRegistry(db *gorm.DB, cfg *config.Config) *FinanceRegistry {
 	priceListUseCase := usecase.NewPriceListUsecase(priceListRepo)
 	taxUseCase := usecase.NewTaxUsecase(taxRepo)
 	purchaseInvoiceUseCase := usecase.NewPurchaseInvoiceUseCase(usecase.PurchaseInvoiceConfig{
-		Repo:               purchaseInvoiceRepo,
-		PurchaseOrderRepo:  repository.NewPurchaseOrderRepository(db),
-		SupplierRepo:       supplierRepo,
-		StoreRepo:          repository.NewStoreRepository(db),
-		WarehouseRepo:      repository.NewWarehouseRepository(db),
-		UserRepo:           userRepo,
-		NumberSequenceRepo: numberSequenceRepo,
-		Uow:                uow,
+		Repo:                 purchaseInvoiceRepo,
+		PurchaseOrderRepo:    repository.NewPurchaseOrderRepository(db),
+		SupplierRepo:         supplierRepo,
+		StoreRepo:            repository.NewStoreRepository(db),
+		WarehouseRepo:        repository.NewWarehouseRepository(db),
+		UserRepo:             userRepo,
+		NumberSequenceRepo:   numberSequenceRepo,
+		ChartOfAccountRepo:   coaRepo,
+		MonthlyAPBalanceRepo: monthlyAPBalanceRepo,
+		DB:                   db,
+		Uow:                  uow,
 	})
 	purchasePaymentUseCase := usecase.NewPurchasePaymentUseCase(usecase.PurchasePaymentConfig{
 		Repo:                    purchasePaymentRepo,
@@ -69,14 +72,18 @@ func NewFinanceRegistry(db *gorm.DB, cfg *config.Config) *FinanceRegistry {
 		DB:                      db,
 		Uow:                     uow,
 	})
-	purchaseReturnUseCase := usecase.NewPurchaseReturnUseCase(
-		purchaseReturnRepo,
-		purchaseInvoiceRepo,
-		userRepo,
-		repository.NewStoreRepository(db),
-		inventoryStockRepo,
-		uow,
-	)
+	purchaseReturnUseCase := usecase.NewPurchaseReturnUseCase(usecase.PurchaseReturnConfig{
+		PRRepo:               purchaseReturnRepo,
+		PIRepo:               purchaseInvoiceRepo,
+		UserRepo:             userRepo,
+		StoreRepo:            repository.NewStoreRepository(db),
+		InventoryStockRepo:   inventoryStockRepo,
+		MonthlyAPBalanceRepo: monthlyAPBalanceRepo,
+		ChartOfAccountRepo:   coaRepo,
+		NumberSequenceRepo:   numberSequenceRepo,
+		DB:                   db,
+		Uow:                  uow,
+	})
 	expenseVoucherUseCase := usecase.NewExpenseVoucherUseCase(
 		expenseVoucherRepo,
 		coaRepo,

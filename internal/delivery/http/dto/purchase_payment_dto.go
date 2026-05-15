@@ -20,6 +20,12 @@ type CreatePurchasePaymentRequest struct {
 	ReferenceNo      *string                          `json:"reference_no" validate:"omitempty,max=50"`
 	GiroNumber       *string                          `json:"giro_number" validate:"omitempty,max=50"`
 	GiroDueDate      *time.Time                       `json:"giro_due_date"`
+	AdminFeeAmount    decimal.Decimal                  `json:"admin_fee_amount"`
+	AdminFeeAccountID *uuid.UUID                       `json:"admin_fee_account_id"`
+	DiscountAmount    decimal.Decimal                  `json:"discount_amount"`
+	DiscountAccountID *uuid.UUID                       `json:"discount_account_id"`
+	WHTAmount         decimal.Decimal                  `json:"wht_amount"`
+	WHTAccountID      *uuid.UUID                       `json:"wht_account_id"`
 	Notes            *string                          `json:"notes"`
 	Items            []CreatePurchasePaymentItemInput `json:"items" validate:"required,min=1,dive"`
 }
@@ -75,6 +81,12 @@ type PurchasePaymentDetailResponse struct {
 	GiroNumber       *string                       `json:"giro_number,omitempty"`
 	GiroDueDate      *time.Time                    `json:"giro_due_date,omitempty"`
 	TotalAmount      decimal.Decimal               `json:"total_amount"`
+	AdminFeeAmount    decimal.Decimal               `json:"admin_fee_amount"`
+	AdminFeeAccountID *uuid.UUID                    `json:"admin_fee_account_id,omitempty"`
+	DiscountAmount    decimal.Decimal               `json:"discount_amount"`
+	DiscountAccountID *uuid.UUID                    `json:"discount_account_id,omitempty"`
+	WHTAmount         decimal.Decimal               `json:"wht_amount"`
+	WHTAccountID      *uuid.UUID                    `json:"wht_account_id,omitempty"`
 	Status           string                        `json:"status"`
 	CreatedByID      uuid.UUID                     `json:"created_by_id"`
 	PostedByID       *uuid.UUID                    `json:"posted_by_id,omitempty"`

@@ -19,6 +19,7 @@ type CreatePurchaseInvoiceRequest struct {
 	SupplierInvoiceNumber string                           `json:"supplier_invoice_number" validate:"required,max=50"`
 	ReferenceNo           *string                          `json:"reference_no"`
 	APAccountID           uuid.UUID                        `json:"ap_account_id" validate:"required"`
+	InventoryAccountID    uuid.UUID                        `json:"inventory_account_id" validate:"required"`
 	InvoiceDate           time.Time                        `json:"invoice_date" validate:"required"`
 	ReceivedDate          time.Time                        `json:"received_date" validate:"required"`
 	PaymentTermDays       int                              `json:"payment_term_days" validate:"min=0"`
@@ -36,6 +37,7 @@ type UpdatePurchaseInvoiceRequest struct {
 	SupplierInvoiceNumber string                           `json:"supplier_invoice_number" validate:"required,max=50"`
 	ReferenceNo           *string                          `json:"reference_no"`
 	APAccountID           uuid.UUID                        `json:"ap_account_id" validate:"required"`
+	InventoryAccountID    uuid.UUID                        `json:"inventory_account_id" validate:"required"`
 	InvoiceDate           time.Time                        `json:"invoice_date" validate:"required"`
 	ReceivedDate          time.Time                        `json:"received_date" validate:"required"`
 	PaymentTermDays       int                              `json:"payment_term_days" validate:"min=0"`
@@ -144,6 +146,7 @@ type PurchaseInvoiceDetailResponse struct {
 	Store                 StoreResponse                  `json:"store"`
 	Warehouse             WarehouseResponse             `json:"warehouse"`
 	APAccountID           uuid.UUID                     `json:"ap_account_id"`
+	InventoryAccountID    uuid.UUID                     `json:"inventory_account_id"`
 	InvoiceDate           time.Time                     `json:"invoice_date"`
 	ReceivedDate          time.Time                     `json:"received_date"`
 	DueDate               time.Time                     `json:"due_date"`

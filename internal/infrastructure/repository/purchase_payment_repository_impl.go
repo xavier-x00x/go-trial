@@ -40,6 +40,9 @@ func (r *purchasePaymentRepository) FindByID(ctx context.Context, id string) (*e
 		Preload("APAccount").
 		Preload("CreatedBy").
 		Preload("PostedBy").
+		Preload("AdminFeeAccount").
+		Preload("DiscountAccount").
+		Preload("WHTAccount").
 		Preload("Items").
 		Preload("Items.PurchaseInvoice").
 		Where("id = ?", id).First(&pp).Error

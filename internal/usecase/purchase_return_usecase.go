@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
+	"gorm.io/gorm"
 )
 
 var (
@@ -28,30 +29,44 @@ type PurchaseReturnUseCase interface {
 	GetAllWithPagination(ctx context.Context, req *dto.MetaRequest) ([]dto.PurchaseReturnListResponse, *entity.Meta, error)
 }
 
-type purchaseReturnUseCaseImpl struct {
-	prRepo             domainRepo.PurchaseReturnRepository
-	piRepo             domainRepo.PurchaseInvoiceRepository
-	userRepo           domainRepo.UserRepository
-	storeRepo          domainRepo.StoreRepository
-	inventoryStockRepo domainRepo.InventoryStockRepository
-	uow                uow.UnitOfWork
+type PurchaseReturnConfig struct {
+	PRRepo               domainRepo.PurchaseReturnRepository
+	PIRepo               domainRepo.PurchaseInvoiceRepository
+	UserRepo             domainRepo.UserRepository
+	StoreRepo            domainRepo.StoreRepository
+	InventoryStockRepo   domainRepo.InventoryStockRepository
+	MonthlyAPBalanceRepo domainRepo.MonthlyAPBalanceRepository
+	ChartOfAccountRepo   domainRepo.ChartOfAccountRepository
+	NumberSequenceRepo   domainRepo.NumberSequenceRepository
+	DB                   *gorm.DB
+	Uow                  uow.UnitOfWork
 }
 
-func NewPurchaseReturnUseCase(
-	prRepo domainRepo.PurchaseReturnRepository,
-	piRepo domainRepo.PurchaseInvoiceRepository,
-	userRepo domainRepo.UserRepository,
-	storeRepo domainRepo.StoreRepository,
-	inventoryStockRepo domainRepo.InventoryStockRepository,
-	uow uow.UnitOfWork,
-) PurchaseReturnUseCase {
+type purchaseReturnUseCaseImpl struct {
+	prRepo               domainRepo.PurchaseReturnRepository
+	piRepo               domainRepo.PurchaseInvoiceRepository
+	userRepo             domainRepo.UserRepository
+	storeRepo            domainRepo.StoreRepository
+	inventoryStockRepo   domainRepo.InventoryStockRepository
+	monthlyAPBalanceRepo domainRepo.MonthlyAPBalanceRepository
+	coaRepo              domainRepo.ChartOfAccountRepository
+	numberSequenceRepo   domainRepo.NumberSequenceRepository
+	db                   *gorm.DB
+	uow                  uow.UnitOfWork
+}
+
+func NewPurchaseReturnUseCase(cfg PurchaseReturnConfig) PurchaseReturnUseCase {
 	return &purchaseReturnUseCaseImpl{
-		prRepo:             prRepo,
-		piRepo:             piRepo,
-		userRepo:           userRepo,
-		storeRepo:          storeRepo,
-		inventoryStockRepo: inventoryStockRepo,
-		uow:                uow,
+		prRepo:               cfg.PRRepo,
+		piRepo:               cfg.PIRepo,
+		userRepo:             cfg.UserRepo,
+		storeRepo:            cfg.StoreRepo,
+		inventoryStockRepo:   cfg.InventoryStockRepo,
+		monthlyAPBalanceRepo: cfg.MonthlyAPBalanceRepo,
+		coaRepo:              cfg.ChartOfAccountRepo,
+		numberSequenceRepo:   cfg.NumberSequenceRepo,
+		db:                   cfg.DB,
+		uow:                  cfg.Uow,
 	}
 }
 
@@ -165,6 +180,12 @@ func (u *purchaseReturnUseCaseImpl) Post(ctx context.Context, userID string, id 
 		return ErrPRInvalidStatus
 	}
 
+	// Load Invoice for accounts
+	pi, err := u.piRepo.FindByID(ctx, pr.PurchaseInvoiceID.String())
+	if err != nil || pi == nil {
+		return errors.New("purchase invoice not found")
+	}
+
 	userUUID, _ := uuid.Parse(userID)
 	now := time.Now()
 	pr.Status = entity.PRStatusPosted
@@ -197,11 +218,97 @@ func (u *purchaseReturnUseCaseImpl) Post(ctx context.Context, userID string, id 
 		}
 	}
 
+	// Update Monthly AP Balance
+	periodMonth := pr.ReturnDate.Format("2006-01")
+	apBalance, err := u.monthlyAPBalanceRepo.FindByPeriodSupplier(txCtx, periodMonth, pr.SupplierID.String())
+	if err != nil {
+		return err
+	}
+
+	if apBalance == nil {
+		apBalance = &entity.MonthlyAPBalance{
+			PeriodMonth:      periodMonth,
+			SupplierID:       pr.SupplierID,
+			BeginningBalance: decimal.Zero,
+			TotalDebit:       decimal.Zero,
+			TotalCredit:      decimal.Zero,
+			EndingBalance:    decimal.Zero,
+		}
+		if err := u.monthlyAPBalanceRepo.Create(txCtx, apBalance); err != nil {
+			return err
+		}
+	}
+
+	// Purchase Return decreases the payable balance, so we subtract from TotalCredit or add to TotalDebit.
+	// In this system, we'll treat it as a reduction of Credit (Invoice).
+	apBalance.TotalCredit = apBalance.TotalCredit.Sub(pr.GrandTotal)
+	apBalance.EndingBalance = apBalance.EndingBalance.Sub(pr.GrandTotal)
+	if err := u.monthlyAPBalanceRepo.Update(txCtx, apBalance); err != nil {
+		return err
+	}
+
+	// Create Journal Entry
+	if err := u.createJournalEntry(txCtx, pr, pi, userID); err != nil {
+		return err
+	}
+
 	if err := u.prRepo.Update(txCtx, pr); err != nil {
 		return err
 	}
 
 	return u.uow.Commit(txCtx)
+}
+
+func (u *purchaseReturnUseCaseImpl) createJournalEntry(ctx context.Context, pr *entity.PurchaseReturn, pi *entity.PurchaseInvoice, userID string) error {
+	tx := uow.GetTx(ctx, u.db)
+	entryDate := pr.ReturnDate
+	period := entryDate.Format("2006-01")
+	description := fmt.Sprintf("Retur Pembelian %s - %s (Ref: %s)", pr.ReturnNumber, pi.SupplierName, pi.InvoiceNumber)
+
+	seqNum, _ := u.numberSequenceRepo.GetNextNumber(ctx, "JE", period)
+	entryNumber := fmt.Sprintf("JE/%s/%05d", period, seqNum)
+
+	userUUID, _ := uuid.Parse(userID)
+
+	je := &entity.JournalEntry{
+		EntryNumber:        entryNumber,
+		SourceDocumentType: entity.JournalSourcePurchaseReturn,
+		SourceDocumentID:   &pr.ID,
+		SourceDocumentNo:   &pr.ReturnNumber,
+		EntryDate:           entryDate,
+		Period:             period,
+		TotalDebit:         pr.GrandTotal,
+		TotalCredit:        pr.GrandTotal,
+		Description:        description,
+		Status:             entity.JournalStatusPosted,
+		PostedByID:         userUUID,
+		Lines: []entity.JournalEntryLine{
+			{
+				SeqNo:        1,
+				AccountID:    pi.APAccountID,
+				DebitAmount:  pr.GrandTotal, // Reduce Payable
+				CreditAmount: decimal.Zero,
+				Description:  &description,
+			},
+			{
+				SeqNo:        2,
+				AccountID:    pi.InventoryAccountID,
+				DebitAmount:  decimal.Zero,
+				CreditAmount: pr.GrandTotal, // Reduce Inventory
+				Description:  &description,
+			},
+		},
+	}
+
+	if err := je.GenerateID(); err != nil {
+		return err
+	}
+
+	for i := range je.Lines {
+		je.Lines[i].JournalEntryID = je.ID
+	}
+
+	return tx.Create(je).Error
 }
 
 func (u *purchaseReturnUseCaseImpl) GetByID(ctx context.Context, id string) (*dto.PurchaseReturnDetailResponse, error) {

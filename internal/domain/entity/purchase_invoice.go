@@ -61,8 +61,10 @@ type PurchaseInvoice struct {
 	Store       Store          `gorm:"foreignKey:StoreID" json:"store,omitempty"`
 	WarehouseID uuid.UUID      `gorm:"type:char(36);not null;index" json:"warehouse_id"` // Gudang tujuan
 	Warehouse   Warehouse      `gorm:"foreignKey:WarehouseID" json:"warehouse,omitempty"`
-	APAccountID uuid.UUID      `gorm:"type:char(36);not null;index" json:"ap_account_id"` // Akun Hutang Usaha untuk penjurnalan (dari Supplier Master atau override)
-	APAccount   ChartOfAccount `gorm:"foreignKey:APAccountID" json:"ap_account,omitempty"`
+	APAccountID        uuid.UUID      `gorm:"type:char(36);not null;index" json:"ap_account_id"` // Akun Hutang Usaha untuk penjurnalan
+	APAccount          ChartOfAccount `gorm:"foreignKey:APAccountID" json:"ap_account,omitempty"`
+	InventoryAccountID uuid.UUID      `gorm:"type:char(36);not null;index" json:"inventory_account_id"` // Akun Persediaan untuk penjurnalan
+	InventoryAccount   ChartOfAccount `gorm:"foreignKey:InventoryAccountID" json:"inventory_account,omitempty"`
 
 	// ── Tanggal & Jadwal ─────────────────────────────────────────────────
 	InvoiceDate      time.Time  `gorm:"not null" json:"invoice_date"`   // Tanggal faktur diterbitkan oleh supplier
