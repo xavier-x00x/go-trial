@@ -32,6 +32,10 @@ func (r *purchaseInvoiceRepository) Delete(ctx context.Context, id uuid.UUID) er
 	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&entity.PurchaseInvoice{}).Error
 }
 
+func (r *purchaseInvoiceRepository) DeleteItemsByPurchaseInvoiceID(ctx context.Context, invoiceID string) error {
+	return uow.GetTx(ctx, r.db).Where("purchase_invoice_id = ?", invoiceID).Delete(&entity.PurchaseInvoiceItem{}).Error
+}
+
 func (r *purchaseInvoiceRepository) FindByID(ctx context.Context, id string) (*entity.PurchaseInvoice, error) {
 	var inv entity.PurchaseInvoice
 	err := r.db.WithContext(ctx).

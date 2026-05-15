@@ -22,6 +22,7 @@ type PurchaseInvoiceRepository interface {
 	Create(ctx context.Context, inv *entity.PurchaseInvoice) error
 	Update(ctx context.Context, inv *entity.PurchaseInvoice) error
 	Delete(ctx context.Context, id uuid.UUID) error
+	DeleteItemsByPurchaseInvoiceID(ctx context.Context, invoiceID string) error
 
 	FindByID(ctx context.Context, id string) (*entity.PurchaseInvoice, error)
 	FindByInvoiceNumber(ctx context.Context, invoiceNum string) (*entity.PurchaseInvoice, error)

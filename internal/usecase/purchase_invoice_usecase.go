@@ -32,6 +32,7 @@ type PurchaseInvoiceUseCase interface {
 	Approve(ctx context.Context, userID string, id string) error
 	Verify(ctx context.Context, userID string, id string) error
 	Post(ctx context.Context, userID string, id string) error
+	Update(ctx context.Context, userID string, id string, req dto.UpdatePurchaseInvoiceRequest) (*dto.PurchaseInvoiceDetailResponse, error)
 	Cancel(ctx context.Context, userID string, id string, reason string) error
 }
 
@@ -304,6 +305,117 @@ func (u *purchaseInvoiceUseCaseImpl) GetAllWithPagination(ctx context.Context, m
 	}
 
 	return toPIListResponses(data), resMeta, nil
+}
+
+func (u *purchaseInvoiceUseCaseImpl) Update(ctx context.Context, userID string, id string, req dto.UpdatePurchaseInvoiceRequest) (*dto.PurchaseInvoiceDetailResponse, error) {
+	pi, err := u.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if pi == nil {
+		return nil, ErrPurchaseInvoiceNotFound
+	}
+
+	if pi.Status != entity.PurchaseInvoiceStatusDraft {
+		return nil, ErrPIInvalidStatus
+	}
+
+	invoiceDate := req.InvoiceDate
+	if invoiceDate.IsZero() {
+		invoiceDate = time.Now()
+	}
+	dueDate := invoiceDate.AddDate(0, 0, req.PaymentTermDays)
+
+	subtotal := decimal.Zero
+	taxAmount := decimal.Zero
+
+	items := make([]entity.PurchaseInvoiceItem, len(req.Items))
+	for i, item := range req.Items {
+		lineSubtotal := item.QtyInvoiced.Mul(item.UnitPrice)
+
+		// Simple discount calculation (can be improved to match Create logic if needed)
+		d1 := lineSubtotal.Mul(item.Discount1Pct.Div(decimal.NewFromInt(100)))
+		afterD1 := lineSubtotal.Sub(d1)
+		d2 := afterD1.Mul(item.Discount2Pct.Div(decimal.NewFromInt(100)))
+		afterD2 := afterD1.Sub(d2)
+		d3 := afterD2.Mul(item.Discount3Pct.Div(decimal.NewFromInt(100)))
+		
+		totalDiscount := d1.Add(d2).Add(d3).Add(item.DiscountAmount)
+		lineNet := lineSubtotal.Sub(totalDiscount)
+		lineTax := lineNet.Mul(item.TaxPct.Div(decimal.NewFromInt(100)))
+
+		subtotal = subtotal.Add(lineSubtotal)
+		taxAmount = taxAmount.Add(lineTax)
+
+		items[i] = entity.PurchaseInvoiceItem{
+			PurchaseInvoiceID:   pi.ID,
+			SeqNo:               i + 1,
+			PurchaseOrderItemID: item.PurchaseOrderItemID,
+			GoodsReceiptItemID:  item.GoodsReceiptItemID,
+			ProductID:           item.ProductID,
+			UOMID:               item.UOMID,
+			QtyInvoiced:         item.QtyInvoiced,
+			UnitPrice:           item.UnitPrice,
+			Discount1Pct:        item.Discount1Pct,
+			Discount2Pct:        item.Discount2Pct,
+			Discount3Pct:        item.Discount3Pct,
+			DiscountAmount:      item.DiscountAmount,
+			TotalDiscountAmount: totalDiscount,
+			TaxPct:              item.TaxPct,
+			TaxAmount:           lineTax,
+			Subtotal:            lineSubtotal,
+		}
+		if err := items[i].GenerateID(); err != nil {
+			return nil, err
+		}
+	}
+
+	grandTotal := subtotal.Add(taxAmount).Add(req.FreightAmount).Add(req.OtherCostAmount).Sub(req.DiscountAmount)
+
+	pi.SupplierInvoiceNumber = req.SupplierInvoiceNumber
+	pi.ReferenceNo = req.ReferenceNo
+	pi.APAccountID = req.APAccountID
+	pi.InvoiceDate = invoiceDate
+	pi.ReceivedDate = req.ReceivedDate
+	pi.DueDate = dueDate
+	pi.PaymentTermDays = req.PaymentTermDays
+	pi.PaymentMode = req.PaymentMode
+	pi.Subtotal = subtotal
+	pi.DiscountAmount = req.DiscountAmount
+	pi.TaxAmount = taxAmount
+	pi.FreightAmount = req.FreightAmount
+	pi.OtherCostAmount = req.OtherCostAmount
+	pi.GrandTotal = grandTotal
+	pi.IsTaxInclusive = req.IsTaxInclusive
+	pi.RemainingAmount = grandTotal
+	pi.Notes = req.Notes
+	pi.Items = items
+
+	txCtx, err := u.uow.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err != nil {
+			_ = u.uow.Rollback(txCtx)
+		}
+	}()
+
+	// Delete old items
+	if err := u.repo.DeleteItemsByPurchaseInvoiceID(txCtx, id); err != nil {
+		return nil, err
+	}
+
+	// Update header and save new items
+	if err := u.repo.Update(txCtx, pi); err != nil {
+		return nil, err
+	}
+
+	if err := u.uow.Commit(txCtx); err != nil {
+		return nil, err
+	}
+
+	return toPIDetailResponse(pi), nil
 }
 
 func (u *purchaseInvoiceUseCaseImpl) Submit(ctx context.Context, userID string, id string) error {

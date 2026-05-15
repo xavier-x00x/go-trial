@@ -17,6 +17,7 @@ type FinanceRegistry struct {
 	PaymentMethodHandler   *handler.PaymentMethodHandler
 	PriceListHandler       *handler.PriceListHandler
 	TaxHandler             *handler.TaxHandler
+	PurchaseInvoiceHandler *handler.PurchaseInvoiceHandler
 	PurchasePaymentHandler *handler.PurchasePaymentHandler
 }
 
@@ -41,6 +42,16 @@ func NewFinanceRegistry(db *gorm.DB, cfg *config.Config) *FinanceRegistry {
 	paymentMethodUseCase := usecase.NewPaymentMethodUsecase(paymentMethodRepo)
 	priceListUseCase := usecase.NewPriceListUsecase(priceListRepo)
 	taxUseCase := usecase.NewTaxUsecase(taxRepo)
+	purchaseInvoiceUseCase := usecase.NewPurchaseInvoiceUseCase(usecase.PurchaseInvoiceConfig{
+		Repo:               purchaseInvoiceRepo,
+		PurchaseOrderRepo:  repository.NewPurchaseOrderRepository(db),
+		SupplierRepo:       supplierRepo,
+		StoreRepo:          repository.NewStoreRepository(db),
+		WarehouseRepo:      repository.NewWarehouseRepository(db),
+		UserRepo:           userRepo,
+		NumberSequenceRepo: numberSequenceRepo,
+		Uow:                uow,
+	})
 	purchasePaymentUseCase := usecase.NewPurchasePaymentUseCase(usecase.PurchasePaymentConfig{
 		Repo:                    purchasePaymentRepo,
 		PurchaseInvoiceRepo:    purchaseInvoiceRepo,
@@ -59,6 +70,7 @@ func NewFinanceRegistry(db *gorm.DB, cfg *config.Config) *FinanceRegistry {
 		PaymentMethodHandler:   handler.NewPaymentMethodHandler(paymentMethodUseCase, v),
 		PriceListHandler:      handler.NewPriceListHandler(priceListUseCase, v),
 		TaxHandler:            handler.NewTaxHandler(taxUseCase, v),
+		PurchaseInvoiceHandler: handler.NewPurchaseInvoiceHandler(purchaseInvoiceUseCase),
 		PurchasePaymentHandler: handler.NewPurchasePaymentHandler(purchasePaymentUseCase),
 	}
 }
