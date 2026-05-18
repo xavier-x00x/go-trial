@@ -18,4 +18,5 @@ type UserRepository interface {
 	Update(ctx context.Context, user *entity.User) error
 	Delete(ctx context.Context, id string) error
 	FindByPIN(ctx context.Context, pin string) (*entity.User, error)
+	GetPermissions(ctx context.Context, userID string, role string) ([]string, error)
 }

@@ -257,6 +257,13 @@ func (u *authUseCase) GetMe(ctx context.Context, userID string) (*dto.UserRespon
 	}
 
 	resp := toUserResponse(user)
+
+	perms, err := u.userRepo.GetPermissions(ctx, user.ID, user.Role)
+	if err != nil {
+		return nil, err
+	}
+	resp.Permissions = perms
+
 	return &resp, nil
 }
 
@@ -391,6 +398,7 @@ func toUserResponse(user *entity.User) dto.UserResponse {
 		LastLoginAt: user.LastLoginAt,
 		CreatedAt:   user.CreatedAt,
 		UpdatedAt:   user.UpdatedAt,
+		Permissions: []string{},
 	}
 }
 

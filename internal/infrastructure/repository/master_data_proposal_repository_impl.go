@@ -135,7 +135,7 @@ func (r *masterDataProposalRepository) FindAllWithPaginationGrouped(ctx context.
 		}
 	}
 
-	if err := subQuery.Pluck("group_id", &groupIDs); err != nil {
+	if err := subQuery.Pluck("group_id", &groupIDs).Error; err != nil {
 		return nil, nil, fmt.Errorf("failed to fetch group IDs: %w", err)
 	}
 

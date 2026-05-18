@@ -130,3 +130,38 @@ func (r *userRepository) FindByGoogleID(ctx context.Context, googleID string) (*
 	}
 	return &user, nil
 }
+
+func (r *userRepository) GetPermissions(ctx context.Context, userID string, role string) ([]string, error) {
+	var permissions []string
+
+	if role == "programmer" || role == "administrator" {
+		err := uow.GetTx(ctx, r.db).Model(&entity.Permission{}).
+			Where("deleted_at IS NULL").
+			Pluck("name", &permissions).Error
+		if err != nil {
+			return nil, err
+		}
+		if permissions == nil {
+			permissions = []string{}
+		}
+		return permissions, nil
+	}
+
+	err := uow.GetTx(ctx, r.db).Table("users").
+		Joins("JOIN roles ON users.role = roles.name").
+		Joins("JOIN role_permissions ON roles.id = role_permissions.role_id").
+		Joins("JOIN permissions ON role_permissions.permission_id = permissions.id").
+		Where("users.id = ?", userID).
+		Where("users.deleted_at IS NULL AND roles.deleted_at IS NULL AND permissions.deleted_at IS NULL").
+		Pluck("permissions.name", &permissions).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	if permissions == nil {
+		permissions = []string{}
+	}
+	return permissions, nil
+}
+
