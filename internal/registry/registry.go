@@ -17,6 +17,7 @@ type Registry struct {
 	Warehouse  *WarehouseRegistry
 	MasterData *MasterDataRegistry
 	JWTManager *jwtPkg.JWTManager
+	DB         *gorm.DB
 }
 
 func New(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *Registry {
@@ -29,5 +30,6 @@ func New(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *Registry {
 		Warehouse:  NewWarehouseRegistry(db, cfg),
 		MasterData: NewMasterDataRegistry(db, rdb, cfg),
 		JWTManager: jwtPkg.NewJWTManager(cfg.JWT.Secret),
+		DB:         db,
 	}
 }

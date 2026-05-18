@@ -8,7 +8,14 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+// check adalah helper tingkat paket untuk memverifikasi hak akses permission.
+var check func(permission string) fiber.Handler
+
 func Setup(app *fiber.App, reg *registry.Registry, jwtManager *jwtPkg.JWTManager) {
+	// Inisialisasi helper check tingkat paket
+	check = func(permission string) fiber.Handler {
+		return middleware.RequirePermission(reg.DB, permission)
+	}
 	// Public routes (no auth required)
 	api := app.Group("/api")
 	api.Post("/auth/register", reg.Auth.Handler.Register)
@@ -55,12 +62,13 @@ func setupProductRoutes(r fiber.Router, reg *registry.Registry) {
 func setupProducts(r fiber.Router, p *registry.ProductRegistry) {
 	h := p.Handler
 	r = r.Group("/products")
-	r.Post("", h.Create)
-	r.Get("", h.GetAll)
-	r.Get("/pagination", h.GetAllWithPagination)
-	r.Get("/:id", h.GetByID)
-	r.Put("/:id", h.Update)
-	r.Delete("/:id", h.Delete)
+
+	r.Post("", check("products:create"), h.Create)
+	r.Get("", check("products:view"), h.GetAll)
+	r.Get("/pagination", check("products:view"), h.GetAllWithPagination)
+	r.Get("/:id", check("products:view"), h.GetByID)
+	r.Put("/:id", check("products:update"), h.Update)
+	r.Delete("/:id", check("products:delete"), h.Delete)
 }
 
 func setupCategories(r fiber.Router, p *registry.ProductRegistry) {

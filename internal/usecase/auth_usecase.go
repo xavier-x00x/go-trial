@@ -115,12 +115,6 @@ func (u *authUseCase) Register(ctx context.Context, req dto.RegisterRequest) (*d
 		return nil, "", err
 	}
 
-	// Default role
-	role := req.Role
-	if role == "" {
-		role = "staff"
-	}
-
 	isActive := true
 	user := &entity.User{
 		ID:       id.String(),
@@ -130,7 +124,7 @@ func (u *authUseCase) Register(ctx context.Context, req dto.RegisterRequest) (*d
 		Email:    req.Email,
 		Phone:    req.Phone,
 		Password: string(hashedPassword),
-		Role:     role,
+		Role:     "", // New users have NO role, Admin must assign role before they can login
 		IsActive: &isActive,
 	}
 

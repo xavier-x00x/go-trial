@@ -18,9 +18,9 @@ import (
 
 var (
 	ErrPurchasePaymentNotFound = errors.New("purchase payment not found")
-	ErrPPInvalidStatus        = errors.New("invalid purchase payment status transition")
-	ErrPPAlreadyPosted        = errors.New("payment already posted")
-	ErrPPAlreadyVoided        = errors.New("payment already voided")
+	ErrPPInvalidStatus         = errors.New("invalid purchase payment status transition")
+	ErrPPAlreadyPosted         = errors.New("payment already posted")
+	ErrPPAlreadyVoided         = errors.New("payment already voided")
 )
 
 type PurchasePaymentUseCase interface {
@@ -32,16 +32,16 @@ type PurchasePaymentUseCase interface {
 }
 
 type PurchasePaymentConfig struct {
-	Repo                    repository.PurchasePaymentRepository
-	PurchaseInvoiceRepo    repository.PurchaseInvoiceRepository
-	PurchaseReturnRepo     repository.PurchaseReturnRepository
-	SupplierRepo            repository.SupplierRepository
-	UserRepo                repository.UserRepository
-	ChartOfAccountRepo      repository.ChartOfAccountRepository
-	MonthlyAPBalanceRepo    repository.MonthlyAPBalanceRepository
-	NumberSequenceRepo     repository.NumberSequenceRepository
-	DB                      *gorm.DB
-	Uow                     interface {
+	Repo                 repository.PurchasePaymentRepository
+	PurchaseInvoiceRepo  repository.PurchaseInvoiceRepository
+	PurchaseReturnRepo   repository.PurchaseReturnRepository
+	SupplierRepo         repository.SupplierRepository
+	UserRepo             repository.UserRepository
+	ChartOfAccountRepo   repository.ChartOfAccountRepository
+	MonthlyAPBalanceRepo repository.MonthlyAPBalanceRepository
+	NumberSequenceRepo   repository.NumberSequenceRepository
+	DB                   *gorm.DB
+	Uow                  interface {
 		Begin(ctx context.Context) (context.Context, error)
 		Commit(ctx context.Context) error
 		Rollback(ctx context.Context) error
@@ -49,16 +49,16 @@ type PurchasePaymentConfig struct {
 }
 
 type purchasePaymentUseCaseImpl struct {
-	repo                    repository.PurchasePaymentRepository
-	purchaseInvoiceRepo    repository.PurchaseInvoiceRepository
-	purchaseReturnRepo     repository.PurchaseReturnRepository
-	supplierRepo            repository.SupplierRepository
-	userRepo                repository.UserRepository
-	chartOfAccountRepo      repository.ChartOfAccountRepository
-	monthlyAPBalanceRepo    repository.MonthlyAPBalanceRepository
-	numberSequenceRepo     repository.NumberSequenceRepository
-	db                      *gorm.DB
-	uow                     interface {
+	repo                 repository.PurchasePaymentRepository
+	purchaseInvoiceRepo  repository.PurchaseInvoiceRepository
+	purchaseReturnRepo   repository.PurchaseReturnRepository
+	supplierRepo         repository.SupplierRepository
+	userRepo             repository.UserRepository
+	chartOfAccountRepo   repository.ChartOfAccountRepository
+	monthlyAPBalanceRepo repository.MonthlyAPBalanceRepository
+	numberSequenceRepo   repository.NumberSequenceRepository
+	db                   *gorm.DB
+	uow                  interface {
 		Begin(ctx context.Context) (context.Context, error)
 		Commit(ctx context.Context) error
 		Rollback(ctx context.Context) error
@@ -67,16 +67,16 @@ type purchasePaymentUseCaseImpl struct {
 
 func NewPurchasePaymentUseCase(cfg PurchasePaymentConfig) PurchasePaymentUseCase {
 	return &purchasePaymentUseCaseImpl{
-		repo:                    cfg.Repo,
-		purchaseInvoiceRepo:    cfg.PurchaseInvoiceRepo,
-		purchaseReturnRepo:     cfg.PurchaseReturnRepo,
-		supplierRepo:            cfg.SupplierRepo,
-		userRepo:                cfg.UserRepo,
-		chartOfAccountRepo:      cfg.ChartOfAccountRepo,
-		monthlyAPBalanceRepo:    cfg.MonthlyAPBalanceRepo,
-		numberSequenceRepo:     cfg.NumberSequenceRepo,
-		db:                      cfg.DB,
-		uow:                     cfg.Uow,
+		repo:                 cfg.Repo,
+		purchaseInvoiceRepo:  cfg.PurchaseInvoiceRepo,
+		purchaseReturnRepo:   cfg.PurchaseReturnRepo,
+		supplierRepo:         cfg.SupplierRepo,
+		userRepo:             cfg.UserRepo,
+		chartOfAccountRepo:   cfg.ChartOfAccountRepo,
+		monthlyAPBalanceRepo: cfg.MonthlyAPBalanceRepo,
+		numberSequenceRepo:   cfg.NumberSequenceRepo,
+		db:                   cfg.DB,
+		uow:                  cfg.Uow,
 	}
 }
 
@@ -496,7 +496,7 @@ func (u *purchasePaymentUseCaseImpl) createJournalEntry(ctx context.Context, pp 
 		SourceDocumentType: entity.JournalSourcePurchasePayment,
 		SourceDocumentID:   &pp.ID,
 		SourceDocumentNo:   &pp.PaymentNumber,
-		EntryDate:           entryDate,
+		EntryDate:          entryDate,
 		Period:             period,
 		Description:        description,
 		Status:             entity.JournalStatusPosted,
@@ -604,15 +604,15 @@ func toPPListResponses(pps []entity.PurchasePayment) []dto.PurchasePaymentListRe
 	responses := make([]dto.PurchasePaymentListResponse, len(pps))
 	for i, pp := range pps {
 		responses[i] = dto.PurchasePaymentListResponse{
-			ID:           pp.ID,
+			ID:            pp.ID,
 			PaymentNumber: pp.PaymentNumber,
-			SupplierID:   pp.SupplierID,
-			SupplierName: pp.Supplier.Name,
-			PaymentDate:  pp.PaymentDate,
-			PaymentMode:  pp.PaymentMode,
-			TotalAmount:  pp.TotalAmount,
-			Status:       pp.Status,
-			CreatedAt:    pp.CreatedAt,
+			SupplierID:    pp.SupplierID,
+			SupplierName:  pp.Supplier.Name,
+			PaymentDate:   pp.PaymentDate,
+			PaymentMode:   pp.PaymentMode,
+			TotalAmount:   pp.TotalAmount,
+			Status:        pp.Status,
+			CreatedAt:     pp.CreatedAt,
 		}
 	}
 	return responses
