@@ -125,17 +125,18 @@ func (u *storeUseCase) GetAllWithPagination(ctx context.Context, meta *dto.MetaR
 	searchColumns := []string{"id", "code", "name"}
 
 	filter := BuildQueryFilter(meta, allowedOrder, searchColumns)
-	filter.Conditions["status"] = 1
+	filter.Conditions["is_active"] = 1
 
 	data, resMeta, err := u.storeRepo.FindAllWithPagination(ctx, filter)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	var resp []dto.StoreResponse
+	resp := []dto.StoreResponse{}
 	for _, s := range data {
 		resp = append(resp, toStoreResponse(&s))
 	}
+
 	return resp, resMeta, nil
 }
 

@@ -26,7 +26,7 @@ func (r *userRepository) Create(ctx context.Context, user *entity.User) error {
 }
 
 func (r *userRepository) FindAllWithPagination(ctx context.Context, filter entity.QueryFilter) ([]entity.User, *entity.Meta, error) {
-	baseQuery := r.db.Model(&entity.User{})
+	baseQuery := r.db.Model(&entity.User{}).Preload("Store")
 	return PaginateAndFilter[entity.User](r.db, baseQuery, filter)
 }
 
@@ -44,7 +44,7 @@ func (r *userRepository) FindByEmail(ctx context.Context, email string) (*entity
 
 func (r *userRepository) FindByID(ctx context.Context, id string) (*entity.User, error) {
 	var user entity.User
-	err := uow.GetTx(ctx, r.db).Where("id = ?", id).First(&user).Error
+	err := uow.GetTx(ctx, r.db).Preload("Store").Where("id = ?", id).First(&user).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -56,7 +56,7 @@ func (r *userRepository) FindByID(ctx context.Context, id string) (*entity.User,
 
 func (r *userRepository) FindAll(ctx context.Context) ([]entity.User, error) {
 	var users []entity.User
-	err := uow.GetTx(ctx, r.db).Find(&users).Error
+	err := uow.GetTx(ctx, r.db).Preload("Store").Find(&users).Error
 	return users, err
 }
 
@@ -88,7 +88,7 @@ func (r *userRepository) FindByIdentity(ctx context.Context, identity string) (*
 }
 
 func (r *userRepository) Update(ctx context.Context, user *entity.User) error {
-	return uow.GetTx(ctx, r.db).Save(user).Error
+	return uow.GetTx(ctx, r.db).Updates(user).Error
 }
 
 func (r *userRepository) Delete(ctx context.Context, id string) error {
@@ -164,4 +164,3 @@ func (r *userRepository) GetPermissions(ctx context.Context, userID string, role
 	}
 	return permissions, nil
 }
-

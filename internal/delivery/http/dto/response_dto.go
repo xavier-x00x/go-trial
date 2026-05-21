@@ -6,12 +6,12 @@ import "time"
 type ChartOfAccountResponse struct {
 	ID            string `json:"id"`
 	AccountCode   string `json:"account_code"`
-	Name         string `json:"name"`
-	AccountType  string `json:"account_type"`
+	Name          string `json:"name"`
+	AccountType   string `json:"account_type"`
 	NormalBalance string `json:"normal_balance"`
-	IsActive     bool   `json:"is_active"`
-	CreatedAt   string `json:"created_at"`
-	UpdatedAt   string `json:"updated_at"`
+	IsActive      bool   `json:"is_active"`
+	CreatedAt     string `json:"created_at"`
+	UpdatedAt     string `json:"updated_at"`
 }
 
 // AuthResponse is returned after login or token refresh.
@@ -24,6 +24,7 @@ type AuthResponse struct {
 type UserResponse struct {
 	ID          string     `json:"id"`
 	StoreID     *string    `json:"store_id,omitempty"`
+	StoreName   *string    `json:"store_name,omitempty"`
 	Name        string     `json:"name"`
 	Username    string     `json:"username"`
 	Email       string     `json:"email"`
@@ -48,11 +49,11 @@ type MessageResponse struct {
 }
 
 type RoleResponse struct {
-	ID         string              `json:"id"`
-	Name      string              `json:"name"`
-	Permission []PermissionResponse `json:"permissions,omitempty"`
-	CreatedAt time.Time          `json:"created_at"`
-	UpdatedAt time.Time          `json:"updated_at"`
+	ID         string    `json:"id"`
+	Name       string    `json:"name"`
+	Permission []string  `json:"permissions,omitempty"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 type PermissionResponse struct {
@@ -60,4 +61,3 @@ type PermissionResponse struct {
 	Path string `json:"path"`
 	Name string `json:"name"`
 }
-

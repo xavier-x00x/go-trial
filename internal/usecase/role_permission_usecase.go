@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"log"
 
 	"go-trial/internal/delivery/http/dto"
 	"go-trial/internal/domain/entity"
@@ -35,12 +36,13 @@ type RolePermissionUseCase interface {
 	ListPermissionsWithPagination(ctx context.Context, meta *dto.MetaRequest) ([]dto.PermissionResponse, *entity.Meta, error)
 	UpdatePermission(ctx context.Context, id string, req dto.UpdatePermissionRequest) (*dto.PermissionResponse, error)
 	DeletePermission(ctx context.Context, id string) error
+	SyncPermissions(ctx context.Context, items []dto.SyncPermissionItem) ([]dto.PermissionResponse, error)
 }
 
 type rolePermissionUseCase struct {
-	rolePermRepo     repository.RoleRepository
-	permissionRepo  repository.PermissionRepository
-	uow             uow.UnitOfWork
+	rolePermRepo   repository.RoleRepository
+	permissionRepo repository.PermissionRepository
+	uow            uow.UnitOfWork
 }
 
 func NewRolePermissionUseCase(
@@ -49,9 +51,9 @@ func NewRolePermissionUseCase(
 	uow uow.UnitOfWork,
 ) RolePermissionUseCase {
 	return &rolePermissionUseCase{
-		rolePermRepo:    rolePermRepo,
+		rolePermRepo:   rolePermRepo,
 		permissionRepo: permissionRepo,
-		uow:             uow,
+		uow:            uow,
 	}
 }
 
@@ -63,8 +65,9 @@ func (u *rolePermissionUseCase) CreateRole(ctx context.Context, req dto.CreateRo
 
 	id, _ := uuid.NewV7()
 	role := &entity.Role{
-		BaseModel: entity.BaseModel{ID: id},
-		Name:     req.Name,
+		BaseModel:   entity.BaseModel{ID: id},
+		Name:        req.Name,
+		Permissions: nil,
 	}
 
 	txCtx, err := u.uow.Begin(ctx)
@@ -78,11 +81,7 @@ func (u *rolePermissionUseCase) CreateRole(ctx context.Context, req dto.CreateRo
 	}
 
 	if len(req.Permissions) > 0 {
-		permIDs := make([]string, len(req.Permissions))
-		for i, p := range req.Permissions {
-			permIDs[i] = p.String()
-		}
-		perms, _ := u.permissionRepo.FindByIDs(ctx, permIDs)
+		perms, _ := u.permissionRepo.FindByPaths(ctx, req.Permissions)
 		_ = u.rolePermRepo.ReplacePermissions(txCtx, role.ID.String(), perms)
 	}
 
@@ -139,7 +138,7 @@ func (u *rolePermissionUseCase) ListRolesWithPagination(ctx context.Context, met
 		return nil, nil, err
 	}
 
-	var resp []dto.RoleResponse
+	resp := []dto.RoleResponse{}
 	for _, r := range data {
 		resp = append(resp, *toRoleResponse(&r))
 	}
@@ -161,6 +160,9 @@ func (u *rolePermissionUseCase) UpdateRole(ctx context.Context, id string, req d
 	}
 	defer u.uow.Rollback(txCtx)
 
+	// log print for debugging
+	log.Println("Replacing permissions for role %s: %v", id, req.Permissions)
+
 	if req.Name != nil && *req.Name != role.Name {
 		existing, _ := u.rolePermRepo.FindByName(ctx, *req.Name)
 		if existing != nil {
@@ -170,14 +172,11 @@ func (u *rolePermissionUseCase) UpdateRole(ctx context.Context, id string, req d
 	}
 
 	if req.Permissions != nil && len(req.Permissions) > 0 {
-		permIDs := make([]string, len(req.Permissions))
-		for i, p := range req.Permissions {
-			permIDs[i] = p.String()
-		}
-		perms, _ := u.permissionRepo.FindByIDs(ctx, permIDs)
+		perms, _ := u.permissionRepo.FindByPaths(ctx, req.Permissions)
 		_ = u.rolePermRepo.ReplacePermissions(txCtx, id, perms)
 	}
 
+	role.Permissions = nil
 	if err := u.rolePermRepo.Update(txCtx, role); err != nil {
 		return nil, err
 	}
@@ -214,8 +213,8 @@ func (u *rolePermissionUseCase) CreatePermission(ctx context.Context, req dto.Cr
 	id, _ := uuid.NewV7()
 	perm := &entity.Permission{
 		BaseModel: entity.BaseModel{ID: id},
-		Path:    req.Path,
-		Name:   req.Name,
+		Path:      req.Path,
+		Name:      req.Name,
 	}
 
 	if err := u.permissionRepo.Create(ctx, perm); err != nil {
@@ -270,7 +269,7 @@ func (u *rolePermissionUseCase) ListPermissionsWithPagination(ctx context.Contex
 		return nil, nil, err
 	}
 
-	var resp []dto.PermissionResponse
+	resp := []dto.PermissionResponse{}
 	for _, p := range data {
 		resp = append(resp, *toPermissionResponse(&p))
 	}
@@ -304,6 +303,46 @@ func (u *rolePermissionUseCase) UpdatePermission(ctx context.Context, id string,
 	return toPermissionResponse(perm), nil
 }
 
+func (u *rolePermissionUseCase) SyncPermissions(ctx context.Context, items []dto.SyncPermissionItem) ([]dto.PermissionResponse, error) {
+	paths := make([]string, len(items))
+	for i, p := range items {
+		paths[i] = p.Path
+	}
+
+	existing, err := u.permissionRepo.FindByPaths(ctx, paths)
+	if err != nil {
+		return nil, err
+	}
+
+	existingMap := make(map[string]bool, len(existing))
+	for _, p := range existing {
+		existingMap[p.Path] = true
+	}
+
+	var created []dto.PermissionResponse
+
+	for _, item := range items {
+		if existingMap[item.Path] {
+			continue
+		}
+
+		id, _ := uuid.NewV7()
+		perm := &entity.Permission{
+			BaseModel: entity.BaseModel{ID: id},
+			Path:      item.Path,
+			Name:      item.Name,
+		}
+
+		if err := u.permissionRepo.Create(ctx, perm); err != nil {
+			return nil, err
+		}
+
+		created = append(created, *toPermissionResponse(perm))
+	}
+
+	return created, nil
+}
+
 func (u *rolePermissionUseCase) DeletePermission(ctx context.Context, id string) error {
 	perm, err := u.permissionRepo.FindByID(ctx, id)
 	if err != nil {
@@ -319,15 +358,19 @@ func toRoleResponse(role *entity.Role) *dto.RoleResponse {
 	if role == nil {
 		return nil
 	}
-	resp := &dto.RoleResponse{
+
+	perms := make([]string, len(role.Permissions))
+	for i, p := range role.Permissions {
+		perms[i] = p.Path
+	}
+
+	return &dto.RoleResponse{
 		ID:         role.ID.String(),
 		Name:       role.Name,
-		Permission: make([]dto.PermissionResponse, len(role.Permissions)),
+		Permission: perms,
+		CreatedAt:  role.CreatedAt,
+		UpdatedAt:  role.UpdatedAt,
 	}
-	for i, p := range role.Permissions {
-		resp.Permission[i] = *toPermissionResponse(&p)
-	}
-	return resp
 }
 
 func toPermissionResponse(perm *entity.Permission) *dto.PermissionResponse {

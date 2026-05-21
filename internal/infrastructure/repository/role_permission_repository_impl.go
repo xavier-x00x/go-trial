@@ -126,6 +126,12 @@ func (r *permissionRepository) FindByPath(ctx context.Context, path string) (*en
 	return &perm, nil
 }
 
+func (r *permissionRepository) FindByPaths(ctx context.Context, paths []string) ([]entity.Permission, error) {
+	var perms []entity.Permission
+	err := uow.GetTx(ctx, r.db).Where("path IN ?", paths).Find(&perms).Error
+	return perms, err
+}
+
 func (r *permissionRepository) FindAll(ctx context.Context) ([]entity.Permission, error) {
 	var perms []entity.Permission
 	err := uow.GetTx(ctx, r.db).Find(&perms).Error

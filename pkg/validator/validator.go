@@ -65,7 +65,11 @@ func msgForTag(fe validator.FieldError) string {
 func toSnakeCase(s string) string {
 	var result strings.Builder
 	for i, r := range s {
-		if i > 0 && r >= 'A' && r <= 'Z' {
+		isUpper := r >= 'A' && r <= 'Z'
+		prevIsLower := i > 0 && s[i-1] >= 'a' && s[i-1] <= 'z'
+		nextIsLower := i+1 < len(s) && s[i+1] >= 'a' && s[i+1] <= 'z'
+
+		if i > 0 && isUpper && (prevIsLower || nextIsLower) {
 			result.WriteRune('_')
 		}
 		result.WriteRune(r)

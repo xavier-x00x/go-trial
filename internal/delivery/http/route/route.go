@@ -23,6 +23,7 @@ func Setup(app *fiber.App, reg *registry.Registry, jwtManager *jwtPkg.JWTManager
 	api.Get("/auth/google", reg.Auth.Handler.GoogleRedirect)
 	api.Get("/auth/google/callback", reg.Auth.Handler.GoogleCallback)
 	api.Post("/auth/google/token", reg.Auth.Handler.GoogleTokenLogin)
+	api.Post("/auth/google/register", reg.Auth.Handler.RegisterWithGoogle)
 	api.Post("/auth/refresh", reg.Auth.Handler.RefreshToken)
 	api.Post("/auth/logout", reg.Auth.Handler.Logout)
 
@@ -30,6 +31,7 @@ func Setup(app *fiber.App, reg *registry.Registry, jwtManager *jwtPkg.JWTManager
 	protected := api.Group("", middleware.AuthMiddleware(jwtManager))
 	protected.Get("/auth/me", reg.Auth.Handler.Me)
 
+	setupUsers(protected, reg)
 	setupRoles(protected, reg)
 	setupPermissions(protected, reg)
 	setupStoreRoutes(protected, reg)
@@ -304,6 +306,7 @@ func setupRoles(r fiber.Router, reg *registry.Registry) {
 func setupPermissions(r fiber.Router, reg *registry.Registry) {
 	h := reg.Auth.RolePermissionHandler
 	r.Post("/permissions", h.CreatePermission)
+	r.Post("/permissions/sync", h.SyncPermissions)
 	r.Get("/permissions", h.ListPermissions)
 	r.Get("/permissions/pagination", h.ListPermissionsWithPagination)
 	r.Get("/permissions/:id", h.GetPermission)

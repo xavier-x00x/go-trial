@@ -60,6 +60,27 @@ go run cmd/api/main.go
 - Add setup function (e.g., `setupPurchasePayments`), wire in `setupFinanceRoutes` or similar
 - Pattern: `r.Group("/resource")` then chain handlers
 
+### Permission Sync (permissions_bulk_data.json)
+
+File `permissions_bulk_data.json` adalah master list semua permission di sistem. Digunakan frontend untuk sync ke backend via `POST /api/permissions/sync`.
+
+**Cara membuat/update:**
+1. Buka `internal/delivery/http/route/route.go`
+2. Identifikasi semua resource group dan action endpoints
+3. Setiap resource butuh permission: `view`, `create`, `update`, `delete`
+4. Resource dengan workflow (submit/approve/post/cancel) butuh permission tambahan sesuai action-nya
+5. Format path: `<resource>:<action>` (kebab-case, colon separator)
+6. Format name: Bahasa Indonesia, diawali huruf kapital, gunakan istilah yang sudah dipakai di route
+
+**Aturan penamaan path:**
+- Resource: kebab-case plural (purchase-orders, goods-receipts, master-data)
+- Action: kebab-case (create-with-invoice)
+- Contoh: `purchase-orders:view`, `goods-receipts:create-with-invoice`
+
+**Saat nambah resource baru di route.go:**
+1. Tambahkan permission entries di `permissions_bulk_data.json`
+2. Jangan lupa tambah `check("resource:action")` middleware di route
+
 ## Common Pitfalls
 
 1. **QueryFilter type mismatch**: Repository uses `repository.QueryFilter`, not `entity.QueryFilter`

@@ -42,6 +42,7 @@ type AuthUseCase interface {
 	Login(ctx context.Context, req dto.LoginRequest) (*dto.AuthResponse, string, error)
 	GoogleLogin(ctx context.Context, code string) (*dto.AuthResponse, string, error)
 	GoogleLoginWithToken(ctx context.Context, req dto.GoogleTokenLoginRequest) (*dto.AuthResponse, string, error)
+	RegisterWithGoogle(ctx context.Context, req dto.GoogleTokenLoginRequest) (*dto.AuthResponse, string, error)
 	GetGoogleLoginURL() string
 	RefreshToken(ctx context.Context, refreshTokenStr string) (*dto.RefreshResponse, error)
 	GetMe(ctx context.Context, userID string) (*dto.UserResponse, error)
@@ -56,6 +57,7 @@ type authUseCase struct {
 	uow        uow.UnitOfWork
 	jwtManager *jwtPkg.JWTManager
 	googleCfg  *oauth2.Config
+	appURL     string
 }
 
 func NewAuthUseCase(
@@ -80,6 +82,7 @@ func NewAuthUseCase(
 		uow:        uow,
 		jwtManager: jwtManager,
 		googleCfg:  googleCfg,
+		appURL:     cfg.App.AppURL,
 	}
 }
 
@@ -291,7 +294,7 @@ func (u *authUseCase) GetAllUsersWithPagination(ctx context.Context, meta *dto.M
 		return nil, nil, err
 	}
 
-	var resp []dto.UserResponse
+	resp := []dto.UserResponse{}
 	for _, user := range data {
 		resp = append(resp, toUserResponse(&user))
 	}
@@ -330,9 +333,10 @@ func (u *authUseCase) UpdateUser(ctx context.Context, id string, req dto.UpdateU
 	if req.Role != nil {
 		user.Role = *req.Role
 	}
-	if req.StoreID != nil {
-		user.StoreID = req.StoreID
-	}
+
+	user.StoreID = &req.StoreID
+	// if req.StoreID != nil {
+	// }
 	if req.IsActive != nil {
 		user.IsActive = req.IsActive
 	}
@@ -350,6 +354,7 @@ func (u *authUseCase) UpdateUser(ctx context.Context, id string, req dto.UpdateU
 	}
 	defer u.uow.Rollback(txCtx)
 
+	user.Store = nil
 	if err := u.userRepo.Update(txCtx, user); err != nil {
 		return nil, err
 	}
@@ -385,7 +390,7 @@ func (u *authUseCase) DeleteUser(ctx context.Context, id string) error {
 }
 
 func toUserResponse(user *entity.User) dto.UserResponse {
-	return dto.UserResponse{
+	resp := dto.UserResponse{
 		ID:          user.ID,
 		StoreID:     user.StoreID,
 		Name:        user.Name,
@@ -400,6 +405,10 @@ func toUserResponse(user *entity.User) dto.UserResponse {
 		UpdatedAt:   user.UpdatedAt,
 		Permissions: []string{},
 	}
+	if user.Store != nil {
+		resp.StoreName = &user.Store.Name
+	}
+	return resp
 }
 
 type googleUserInfo struct {
@@ -516,6 +525,7 @@ func (u *authUseCase) processGoogleUser(ctx context.Context, gUser googleUserInf
 			return nil, "", err
 		}
 	} else {
+		user.Store = nil
 		if err := u.userRepo.Update(txCtx, user); err != nil {
 			return nil, "", err
 		}
@@ -595,14 +605,13 @@ func (u *authUseCase) downloadGoogleProfilePicture(userID, pictureURL string) (s
 		return "", err
 	}
 
-	return "/uploads/avatars/" + filename, nil
+	return u.appURL + "/uploads/avatars/" + filename, nil
 }
 
 func (u *authUseCase) GoogleLoginWithToken(ctx context.Context, req dto.GoogleTokenLoginRequest) (*dto.AuthResponse, string, error) {
 	var gUser googleUserInfo
 
 	if req.TokenType == "id" {
-		// Verify ID Token
 		payload, err := idtoken.Validate(ctx, req.Token, u.googleCfg.ClientID)
 		if err != nil {
 			return nil, "", fmt.Errorf("failed to validate id token: %w", err)
@@ -615,7 +624,6 @@ func (u *authUseCase) GoogleLoginWithToken(ctx context.Context, req dto.GoogleTo
 			Picture: payload.Claims["picture"].(string),
 		}
 	} else {
-		// Access Token: Call userinfo API
 		token := &oauth2.Token{AccessToken: req.Token}
 		client := u.googleCfg.Client(ctx, token)
 		resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
@@ -629,5 +637,179 @@ func (u *authUseCase) GoogleLoginWithToken(ctx context.Context, req dto.GoogleTo
 		}
 	}
 
-	return u.processGoogleUser(ctx, gUser)
+	// Cari user di database — tidak auto-create seperti GoogleLogin via code
+	user, err := u.userRepo.FindByGoogleID(ctx, gUser.ID)
+	if err != nil {
+		return nil, "", err
+	}
+	if user == nil {
+		user, err = u.userRepo.FindByEmail(ctx, gUser.Email)
+		if err != nil {
+			return nil, "", err
+		}
+	}
+	if user == nil {
+		return nil, "", ErrInvalidCredentials
+	}
+
+	// Cek active status
+	if user.IsActive != nil && !*user.IsActive {
+		return nil, "", ErrAccountInactive
+	}
+
+	// Cek role
+	if user.Role == "" {
+		return nil, "", ErrRoleNotAssigned
+	}
+
+	// Link GoogleID jika belum
+	if user.GoogleID == nil {
+		user.GoogleID = &gUser.ID
+		user.AuthProvider = "google"
+	}
+
+	// Download profile picture
+	if gUser.Picture != "" {
+		localAvatarPath, err := u.downloadGoogleProfilePicture(user.ID, gUser.Picture)
+		if err == nil {
+			user.AvatarURL = &localAvatarPath
+		}
+	}
+
+	// Update last login
+	now := time.Now()
+	user.LastLoginAt = &now
+
+	if err := u.userRepo.Update(ctx, user); err != nil {
+		return nil, "", err
+	}
+
+	accessToken, err := u.jwtManager.GenerateAccessToken(user.ID, user.Email, user.Role, user.StoreID)
+	if err != nil {
+		return nil, "", err
+	}
+
+	refreshToken, err := u.jwtManager.GenerateRefreshToken(user.ID, user.Email, user.Role, user.StoreID)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return &dto.AuthResponse{
+		AccessToken: accessToken,
+		User:        toUserResponse(user),
+	}, refreshToken, nil
+}
+
+func (u *authUseCase) RegisterWithGoogle(ctx context.Context, req dto.GoogleTokenLoginRequest) (*dto.AuthResponse, string, error) {
+	var gUser googleUserInfo
+
+	if req.TokenType == "id" {
+		payload, err := idtoken.Validate(ctx, req.Token, u.googleCfg.ClientID)
+		if err != nil {
+			return nil, "", fmt.Errorf("failed to validate id token: %w", err)
+		}
+
+		gUser = googleUserInfo{
+			ID:      payload.Subject,
+			Email:   payload.Claims["email"].(string),
+			Name:    payload.Claims["name"].(string),
+			Picture: payload.Claims["picture"].(string),
+		}
+	} else {
+		token := &oauth2.Token{AccessToken: req.Token}
+		client := u.googleCfg.Client(ctx, token)
+		resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
+		if err != nil {
+			return nil, "", fmt.Errorf("failed to get user info: %w", err)
+		}
+		defer resp.Body.Close()
+
+		if err := json.NewDecoder(resp.Body).Decode(&gUser); err != nil {
+			return nil, "", fmt.Errorf("failed to decode user info: %w", err)
+		}
+	}
+
+	existing, err := u.userRepo.FindByGoogleID(ctx, gUser.ID)
+	if err != nil {
+		return nil, "", err
+	}
+	if existing != nil {
+		return nil, "", ErrEmailAlreadyExists
+	}
+
+	existing, err = u.userRepo.FindByEmail(ctx, gUser.Email)
+	if err != nil {
+		return nil, "", err
+	}
+	if existing != nil {
+		return nil, "", ErrEmailAlreadyExists
+	}
+
+	id, err := uuid.NewV7()
+	if err != nil {
+		return nil, "", err
+	}
+
+	username := strings.Split(gUser.Email, "@")[0]
+	existing, err = u.userRepo.FindByUsername(ctx, username)
+	if err != nil {
+		return nil, "", err
+	}
+	if existing != nil {
+		username = fmt.Sprintf("%s_%s", username, id.String()[:8])
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, "", err
+	}
+
+	isActive := true
+	user := &entity.User{
+		ID:           id.String(),
+		Name:         gUser.Name,
+		Username:     username,
+		Email:        gUser.Email,
+		Password:     string(hashedPassword),
+		Role:         "",
+		AuthProvider: "google",
+		GoogleID:     &gUser.ID,
+		IsActive:     &isActive,
+	}
+
+	if gUser.Picture != "" {
+		localAvatarPath, err := u.downloadGoogleProfilePicture(user.ID, gUser.Picture)
+		if err == nil {
+			user.AvatarURL = &localAvatarPath
+		}
+	}
+
+	txCtx, err := u.uow.Begin(ctx)
+	if err != nil {
+		return nil, "", err
+	}
+	defer u.uow.Rollback(txCtx)
+
+	if err := u.userRepo.Create(txCtx, user); err != nil {
+		return nil, "", err
+	}
+
+	if err := u.uow.Commit(txCtx); err != nil {
+		return nil, "", err
+	}
+
+	accessToken, err := u.jwtManager.GenerateAccessToken(user.ID, user.Email, user.Role, user.StoreID)
+	if err != nil {
+		return nil, "", err
+	}
+
+	refreshToken, err := u.jwtManager.GenerateRefreshToken(user.ID, user.Email, user.Role, user.StoreID)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return &dto.AuthResponse{
+		AccessToken: accessToken,
+		User:        toUserResponse(user),
+	}, refreshToken, nil
 }

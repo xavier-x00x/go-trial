@@ -22,6 +22,7 @@ type PermissionRepository interface {
 	FindByID(ctx context.Context, id string) (*entity.Permission, error)
 	FindByIDs(ctx context.Context, ids []string) ([]entity.Permission, error)
 	FindByPath(ctx context.Context, path string) (*entity.Permission, error)
+	FindByPaths(ctx context.Context, paths []string) ([]entity.Permission, error)
 	FindAll(ctx context.Context) ([]entity.Permission, error)
 	FindAllWithPagination(ctx context.Context, filter entity.QueryFilter) ([]entity.Permission, *entity.Meta, error)
 	Update(ctx context.Context, perm *entity.Permission) error

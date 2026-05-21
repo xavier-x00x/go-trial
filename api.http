@@ -22,7 +22,7 @@ Content-Type: application/json
 
 ### Get Profile
 GET http://localhost:3050/api/auth/me
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiMDE5ZGNmZDEtZDg3Yy03NzFhLTllMTgtNTIyYWNiMzZhZGRjIiwiZW1haWwiOiJkd2lAZXhhbXBsZS5jb20iLCJyb2xlIjoic3RhZmYiLCJ0eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzc3MzE2NzcwLCJuYmYiOjE3NzczMTU4NzAsImlhdCI6MTc3NzMxNTg3MH0.VtY7bXTI1ZBdHJkcmK_DK7AsFhZ_Gf77ax9DCKFm7iQ
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiMDE5ZTM5MmItZDVlZi03YmM5LWIxMjUtMDc0ZmFlNjEwZGIzIiwiZW1haWwiOiJub3RvQGRldi5jb20iLCJyb2xlIjoicHJvZ3JhbW1lciIsInR5cGUiOiJhY2Nlc3MiLCJleHAiOjE3NzkwODk0OTEsIm5iZiI6MTc3OTA4ODU5MSwiaWF0IjoxNzc5MDg4NTkxfQ.frCSCxsi_bqXuU2Hdv0jYKY6CXU4zPX72dftBjwm3Uk
 
 
 ### Create Store
@@ -55,19 +55,8 @@ GET http://localhost:3050/api/master-data/pending
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiMDE5ZGNmZDEtZDg3Yy03NzFhLTllMTgtNTIyYWNiMzZhZGRjIiwiZW1haWwiOiJkd2lAZXhhbXBsZS5jb20iLCJyb2xlIjoic3RhZmYiLCJ0eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzc3MzE2NzcwLCJuYmYiOjE3NzczMTU4NzAsImlhdCI6MTc3NzMxNTg3MH0.VtY7bXTI1ZBdHJkcmK_DK7AsFhZ_Gf77ax9DCKFm7iQ
 
 ### Create Master Data Proposal
-POST http://localhost:3050/api/master-data
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiMDE5ZGNmZDEtZDg3Yy03NzFhLTllMTgtNTIyYWNiMzZhZGRjIiwiZW1haWwiOiJkd2lAZXhhbXBsZS5jb20iLCJyb2xlIjoic3RhZmYiLCJ0eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzc3MzE2NzcwLCJuYmYiOjE3NzczMTU4NzAsImlhdCI6MTc3NzMxNTg3MH0.VtY7bXTI1ZBdHJkcmK_DK7AsFhZ_Gf77ax9DCKFm7iQ
+GET http://localhost:3050/api/users/019dcfd1-d87c-771a-9e18-522acb36addc
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiMDE5ZTM5MmItZDVlZi03YmM5LWIxMjUtMDc0ZmFlNjEwZGIzIiwiZW1haWwiOiJub3RvQGRldi5jb20iLCJyb2xlIjoicHJvZ3JhbW1lciIsInR5cGUiOiJhY2Nlc3MiLCJleHAiOjE3NzkxNzg1NjEsIm5iZiI6MTc3OTE3NzY2MSwiaWF0IjoxNzc5MTc3NjYxfQ.tUmc3OILoba-FUeph1bEIgSKiDLO5WiLiDRmlkbdeys
 Content-Type: application/json
-
-{
-  "entity_type": "SUPPLIER",
-  "action_type": "CREATE",
-  "reason": "Test proposal from API",
-  "items": [
-    {
-      "payload_json": "{\"code\": \"SUP-TEST-001\", \"name\": \"Test Supplier\", \"email\": \"test@supplier.com\"}"
-    }
-  ]
-}
 
 

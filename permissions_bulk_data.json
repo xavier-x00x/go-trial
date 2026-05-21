@@ -1,0 +1,414 @@
+[
+  {
+    "path": "products:view",
+    "name": "Melihat Produk"
+  },
+  {
+    "path": "products:create",
+    "name": "Menambah Produk"
+  },
+  {
+    "path": "products:update",
+    "name": "Mengubah Produk"
+  },
+  {
+    "path": "products:delete",
+    "name": "Menghapus Produk"
+  },
+  {
+    "path": "categories:view",
+    "name": "Melihat Kategori"
+  },
+  {
+    "path": "categories:create",
+    "name": "Menambah Kategori"
+  },
+  {
+    "path": "categories:update",
+    "name": "Mengubah Kategori"
+  },
+  {
+    "path": "categories:delete",
+    "name": "Menghapus Kategori"
+  },
+  {
+    "path": "uoms:view",
+    "name": "Melihat Satuan (UOM)"
+  },
+  {
+    "path": "uoms:create",
+    "name": "Menambah Satuan (UOM)"
+  },
+  {
+    "path": "uoms:update",
+    "name": "Mengubah Satuan (UOM)"
+  },
+  {
+    "path": "uoms:delete",
+    "name": "Menghapus Satuan (UOM)"
+  },
+  {
+    "path": "product-prices:view",
+    "name": "Melihat Harga Produk"
+  },
+  {
+    "path": "product-prices:create",
+    "name": "Menambah Harga Produk"
+  },
+  {
+    "path": "product-prices:update",
+    "name": "Mengubah Harga Produk"
+  },
+  {
+    "path": "product-prices:delete",
+    "name": "Menghapus Harga Produk"
+  },
+  {
+    "path": "product-uoms:view",
+    "name": "Melihat Konversi Satuan"
+  },
+  {
+    "path": "product-uoms:create",
+    "name": "Menambah Konversi Satuan"
+  },
+  {
+    "path": "product-uoms:update",
+    "name": "Mengubah Konversi Satuan"
+  },
+  {
+    "path": "product-uoms:delete",
+    "name": "Menghapus Konversi Satuan"
+  },
+  {
+    "path": "stores:view",
+    "name": "Melihat Toko"
+  },
+  {
+    "path": "stores:create",
+    "name": "Menambah Toko"
+  },
+  {
+    "path": "stores:update",
+    "name": "Mengubah Toko"
+  },
+  {
+    "path": "stores:delete",
+    "name": "Menghapus Toko"
+  },
+  {
+    "path": "suppliers:view",
+    "name": "Melihat Pemasok"
+  },
+  {
+    "path": "suppliers:create",
+    "name": "Menambah Pemasok"
+  },
+  {
+    "path": "suppliers:update",
+    "name": "Mengubah Pemasok"
+  },
+  {
+    "path": "suppliers:delete",
+    "name": "Menghapus Pemasok"
+  },
+  {
+    "path": "warehouses:view",
+    "name": "Melihat Gudang"
+  },
+  {
+    "path": "warehouses:create",
+    "name": "Menambah Gudang"
+  },
+  {
+    "path": "warehouses:update",
+    "name": "Mengubah Gudang"
+  },
+  {
+    "path": "warehouses:delete",
+    "name": "Menghapus Gudang"
+  },
+  {
+    "path": "purchase-orders:view",
+    "name": "Melihat Pesanan Pembelian"
+  },
+  {
+    "path": "purchase-orders:create",
+    "name": "Menambah Pesanan Pembelian"
+  },
+  {
+    "path": "purchase-orders:update",
+    "name": "Mengubah Pesanan Pembelian"
+  },
+  {
+    "path": "purchase-orders:submit",
+    "name": "Submit Pesanan Pembelian"
+  },
+  {
+    "path": "purchase-orders:approve",
+    "name": "Menyetujui Pesanan Pembelian"
+  },
+  {
+    "path": "purchase-orders:cancel",
+    "name": "Membatalkan Pesanan Pembelian"
+  },
+  {
+    "path": "purchase-invoices:view",
+    "name": "Melihat Faktur Pembelian"
+  },
+  {
+    "path": "purchase-invoices:create",
+    "name": "Menambah Faktur Pembelian"
+  },
+  {
+    "path": "purchase-invoices:update",
+    "name": "Mengubah Faktur Pembelian"
+  },
+  {
+    "path": "purchase-invoices:submit",
+    "name": "Submit Faktur Pembelian"
+  },
+  {
+    "path": "purchase-invoices:approve",
+    "name": "Menyetujui Faktur Pembelian"
+  },
+  {
+    "path": "purchase-invoices:verify",
+    "name": "Verifikasi Faktur Pembelian"
+  },
+  {
+    "path": "purchase-invoices:post",
+    "name": "Post Faktur Pembelian"
+  },
+  {
+    "path": "purchase-invoices:cancel",
+    "name": "Membatalkan Faktur Pembelian"
+  },
+  {
+    "path": "purchase-payments:view",
+    "name": "Melihat Pembayaran"
+  },
+  {
+    "path": "purchase-payments:create",
+    "name": "Menambah Pembayaran"
+  },
+  {
+    "path": "purchase-payments:post",
+    "name": "Post Pembayaran"
+  },
+  {
+    "path": "purchase-payments:void",
+    "name": "Void Pembayaran"
+  },
+  {
+    "path": "purchase-returns:view",
+    "name": "Melihat Retur Pembelian"
+  },
+  {
+    "path": "purchase-returns:create",
+    "name": "Menambah Retur Pembelian"
+  },
+  {
+    "path": "purchase-returns:post",
+    "name": "Post Retur Pembelian"
+  },
+  {
+    "path": "expense-vouchers:view",
+    "name": "Melihat Voucher Pengeluaran"
+  },
+  {
+    "path": "expense-vouchers:create",
+    "name": "Menambah Voucher Pengeluaran"
+  },
+  {
+    "path": "expense-vouchers:update",
+    "name": "Mengubah Voucher Pengeluaran"
+  },
+  {
+    "path": "expense-vouchers:post",
+    "name": "Post Voucher Pengeluaran"
+  },
+  {
+    "path": "expense-vouchers:cancel",
+    "name": "Membatalkan Voucher Pengeluaran"
+  },
+  {
+    "path": "goods-receipts:view",
+    "name": "Melihat Penerimaan Barang"
+  },
+  {
+    "path": "goods-receipts:create",
+    "name": "Menambah Penerimaan Barang"
+  },
+  {
+    "path": "goods-receipts:create-with-invoice",
+    "name": "Menambah Penerimaan Barang dengan Faktur"
+  },
+  {
+    "path": "goods-receipts:update",
+    "name": "Mengubah Penerimaan Barang"
+  },
+  {
+    "path": "goods-receipts:confirm",
+    "name": "Konfirmasi Penerimaan Barang"
+  },
+  {
+    "path": "goods-receipts:cancel",
+    "name": "Membatalkan Penerimaan Barang"
+  },
+  {
+    "path": "planning:view",
+    "name": "Melihat Perencanaan"
+  },
+  {
+    "path": "planning:calculate",
+    "name": "Hitung Perencanaan"
+  },
+  {
+    "path": "planning:approve",
+    "name": "Menyetujui Perencanaan"
+  },
+  {
+    "path": "planning:ignore",
+    "name": "Abaikan Perencanaan"
+  },
+  {
+    "path": "master-data:view",
+    "name": "Melihat Master Data"
+  },
+  {
+    "path": "master-data:create",
+    "name": "Menambah Master Data"
+  },
+  {
+    "path": "master-data:update",
+    "name": "Mengubah Master Data"
+  },
+  {
+    "path": "master-data:review",
+    "name": "Review Master Data"
+  },
+  {
+    "path": "master-data:execute",
+    "name": "Eksekusi Master Data"
+  },
+  {
+    "path": "accounts:view",
+    "name": "Melihat Akun"
+  },
+  {
+    "path": "accounts:create",
+    "name": "Menambah Akun"
+  },
+  {
+    "path": "accounts:update",
+    "name": "Mengubah Akun"
+  },
+  {
+    "path": "customers:view",
+    "name": "Melihat Pelanggan"
+  },
+  {
+    "path": "customers:create",
+    "name": "Menambah Pelanggan"
+  },
+  {
+    "path": "customers:update",
+    "name": "Mengubah Pelanggan"
+  },
+  {
+    "path": "customers:delete",
+    "name": "Menghapus Pelanggan"
+  },
+  {
+    "path": "payment-methods:view",
+    "name": "Melihat Metode Pembayaran"
+  },
+  {
+    "path": "payment-methods:create",
+    "name": "Menambah Metode Pembayaran"
+  },
+  {
+    "path": "payment-methods:update",
+    "name": "Mengubah Metode Pembayaran"
+  },
+  {
+    "path": "payment-methods:delete",
+    "name": "Menghapus Metode Pembayaran"
+  },
+  {
+    "path": "price-lists:view",
+    "name": "Melihat Daftar Harga"
+  },
+  {
+    "path": "price-lists:create",
+    "name": "Menambah Daftar Harga"
+  },
+  {
+    "path": "price-lists:update",
+    "name": "Mengubah Daftar Harga"
+  },
+  {
+    "path": "price-lists:delete",
+    "name": "Menghapus Daftar Harga"
+  },
+  {
+    "path": "taxes:view",
+    "name": "Melihat Pajak"
+  },
+  {
+    "path": "taxes:create",
+    "name": "Menambah Pajak"
+  },
+  {
+    "path": "taxes:update",
+    "name": "Mengubah Pajak"
+  },
+  {
+    "path": "taxes:delete",
+    "name": "Menghapus Pajak"
+  },
+  {
+    "path": "roles:view",
+    "name": "Melihat Role"
+  },
+  {
+    "path": "roles:create",
+    "name": "Menambah Role"
+  },
+  {
+    "path": "roles:update",
+    "name": "Mengubah Role"
+  },
+  {
+    "path": "roles:delete",
+    "name": "Menghapus Role"
+  },
+  {
+    "path": "permissions:view",
+    "name": "Melihat Permission"
+  },
+  {
+    "path": "permissions:create",
+    "name": "Menambah Permission"
+  },
+  {
+    "path": "permissions:update",
+    "name": "Mengubah Permission"
+  },
+  {
+    "path": "permissions:delete",
+    "name": "Menghapus Permission"
+  },
+  {
+    "path": "users:view",
+    "name": "Melihat Pengguna"
+  },
+  {
+    "path": "users:update",
+    "name": "Mengubah Pengguna"
+  },
+  {
+    "path": "users:delete",
+    "name": "Menghapus Pengguna"
+  }
+]

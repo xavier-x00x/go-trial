@@ -205,6 +205,24 @@ func (h *RolePermissionHandler) UpdatePermission(c *fiber.Ctx) error {
 	return response.Success(c, fiber.StatusOK, "Permission updated successfully", result)
 }
 
+func (h *RolePermissionHandler) SyncPermissions(c *fiber.Ctx) error {
+	var items []dto.SyncPermissionItem
+	if err := c.BodyParser(&items); err != nil {
+		return response.Error(c, fiber.StatusBadRequest, "Invalid request body: "+err.Error())
+	}
+
+	if len(items) == 0 {
+		return response.Error(c, fiber.StatusBadRequest, "permissions array is required")
+	}
+
+	result, err := h.uc.SyncPermissions(c.UserContext(), items)
+	if err != nil {
+		return response.Error(c, fiber.StatusInternalServerError, err.Error())
+	}
+
+	return response.Success(c, fiber.StatusOK, "Permissions synced successfully", result)
+}
+
 func (h *RolePermissionHandler) DeletePermission(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if err := h.uc.DeletePermission(c.UserContext(), id); err != nil {

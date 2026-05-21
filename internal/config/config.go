@@ -24,6 +24,7 @@ type GoogleOAuthConfig struct {
 
 type AppConfig struct {
 	Port       string
+	AppURL     string
 	WAEndpoint string
 }
 
@@ -60,6 +61,7 @@ func Load() *Config {
 	return &Config{
 		App: AppConfig{
 			Port:       getEnv("APP_PORT", "3000"),
+			AppURL:     getEnv("APP_URL", "http://localhost:3050"),
 			WAEndpoint: getEnv("WA_ENDPOINT", "http://localhost:8080/whatsapp"),
 		},
 		Database: DatabaseConfig{

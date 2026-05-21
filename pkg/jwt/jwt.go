@@ -8,9 +8,9 @@ import (
 )
 
 const (
-	AccessTokenDuration    = 15 * time.Minute
+	AccessTokenDuration  = 15 * time.Minute
 	RefreshTokenDuration = 2 * time.Hour
-	RememberMeDuration = 30 * 24 * time.Hour // 30 days
+	RememberMeDuration   = 30 * 24 * time.Hour // 30 days
 )
 
 type TokenType string
@@ -90,4 +90,3 @@ func (m *JWTManager) ValidateToken(tokenString string) (*Claims, error) {
 
 	return claims, nil
 }
-

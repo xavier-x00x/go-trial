@@ -13,9 +13,9 @@ import (
 )
 
 var (
-	ErrSupplierNotFound     = errors.New("supplier not found")
-	ErrSupplierCodeExists   = errors.New("supplier code already exists")
-	ErrSupplierNotActive = errors.New("supplier is not active")
+	ErrSupplierNotFound   = errors.New("supplier not found")
+	ErrSupplierCodeExists = errors.New("supplier code already exists")
+	ErrSupplierNotActive  = errors.New("supplier is not active")
 )
 
 type SupplierUseCase interface {
@@ -29,15 +29,15 @@ type SupplierUseCase interface {
 
 type supplierUseCase struct {
 	supplierRepo repository.SupplierRepository
-	coaRepo     repository.ChartOfAccountRepository
-	uow        uow.UnitOfWork
+	coaRepo      repository.ChartOfAccountRepository
+	uow          uow.UnitOfWork
 }
 
 func NewSupplierUseCase(supplierRepo repository.SupplierRepository, coaRepo repository.ChartOfAccountRepository, uow uow.UnitOfWork) SupplierUseCase {
 	return &supplierUseCase{
 		supplierRepo: supplierRepo,
-		coaRepo:     coaRepo,
-		uow:        uow,
+		coaRepo:      coaRepo,
+		uow:          uow,
 	}
 }
 
@@ -133,7 +133,7 @@ func (u *supplierUseCase) GetAllWithPagination(ctx context.Context, meta *dto.Me
 		return nil, nil, err
 	}
 
-	var resp []dto.SupplierResponse
+	resp := []dto.SupplierResponse{}
 	for _, s := range data {
 		resp = append(resp, toSupplierResponse(&s, nil))
 	}
@@ -250,28 +250,28 @@ func (u *supplierUseCase) Delete(ctx context.Context, id string) error {
 func toSupplierResponse(s *entity.Supplier, coa *dto.ChartOfAccountResponse) dto.SupplierResponse {
 	return dto.SupplierResponse{
 		ID:                          s.ID,
-		Code:                       s.Code,
-		Name:                       s.Name,
-		ContactPerson:              s.ContactPerson,
-		ContactPhone:              s.ContactPhone,
-		PhoneNumber:               s.PhoneNumber,
-		Email:                     s.Email,
+		Code:                        s.Code,
+		Name:                        s.Name,
+		ContactPerson:               s.ContactPerson,
+		ContactPhone:                s.ContactPhone,
+		PhoneNumber:                 s.PhoneNumber,
+		Email:                       s.Email,
 		PreferredNotificationMethod: s.PreferredNotificationMethod,
-		Address:                   s.Address,
-		TaxRegNumber:              s.TaxRegNumber,
-		SupplierCategoryID:        s.SupplierCategoryID,
-		SupplierCategory:           nil,
-		IsPKP:                    s.IsPKP,
-		PaymentTermDays:          s.PaymentTermDays,
-		PaymentMode:              s.PaymentMode,
-		MinOrderAmount:          s.MinOrderAmount,
-		BankName:                s.BankName,
-		BankAccount:            s.BankAccount,
-		BankAccountName:        s.BankAccountName,
-		IsActive:                s.IsActive,
-		APAccountID:            s.APAccountID,
-		APAccount:              coa,
-		CreatedAt:       s.CreatedAt,
-		UpdatedAt:       s.UpdatedAt,
+		Address:                     s.Address,
+		TaxRegNumber:                s.TaxRegNumber,
+		SupplierCategoryID:          s.SupplierCategoryID,
+		SupplierCategory:            nil,
+		IsPKP:                       s.IsPKP,
+		PaymentTermDays:             s.PaymentTermDays,
+		PaymentMode:                 s.PaymentMode,
+		MinOrderAmount:              s.MinOrderAmount,
+		BankName:                    s.BankName,
+		BankAccount:                 s.BankAccount,
+		BankAccountName:             s.BankAccountName,
+		IsActive:                    s.IsActive,
+		APAccountID:                 s.APAccountID,
+		APAccount:                   coa,
+		CreatedAt:                   s.CreatedAt,
+		UpdatedAt:                   s.UpdatedAt,
 	}
 }

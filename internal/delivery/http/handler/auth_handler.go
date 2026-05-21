@@ -173,6 +173,11 @@ func (h *AuthHandler) UpdateUser(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return response.Error(c, fiber.StatusBadRequest, "Invalid request body")
 	}
+
+	if errs := h.validator.Validate(req); len(errs) > 0 {
+		return response.ValidationError(c, "Validation failed", errs)
+	}
+
 	result, err := h.authUseCase.UpdateUser(c.UserContext(), id, req)
 	if err != nil {
 		if errors.Is(err, usecase.ErrUserNotFound) {
@@ -240,6 +245,12 @@ func (h *AuthHandler) GoogleTokenLogin(c *fiber.Ctx) error {
 
 	authResp, refreshToken, err := h.authUseCase.GoogleLoginWithToken(c.UserContext(), req)
 	if err != nil {
+		if errors.Is(err, usecase.ErrInvalidCredentials) {
+			return response.Error(c, fiber.StatusUnauthorized, err.Error())
+		}
+		if errors.Is(err, usecase.ErrAccountInactive) {
+			return response.Error(c, fiber.StatusForbidden, err.Error())
+		}
 		if errors.Is(err, usecase.ErrRoleNotAssigned) {
 			return response.Error(c, fiber.StatusForbidden, err.Error())
 		}
@@ -249,6 +260,30 @@ func (h *AuthHandler) GoogleTokenLogin(c *fiber.Ctx) error {
 	setRefreshTokenCookie(c, refreshToken)
 
 	return response.Success(c, fiber.StatusOK, "Login successful via Google Token", authResp)
+}
+
+// RegisterWithGoogle handles POST /api/auth/google/register
+func (h *AuthHandler) RegisterWithGoogle(c *fiber.Ctx) error {
+	var req dto.GoogleTokenLoginRequest
+	if err := c.BodyParser(&req); err != nil {
+		return response.Error(c, fiber.StatusBadRequest, "Invalid request body")
+	}
+
+	if errs := h.validator.Validate(req); len(errs) > 0 {
+		return response.ValidationError(c, "Validation failed", errs)
+	}
+
+	authResp, refreshToken, err := h.authUseCase.RegisterWithGoogle(c.UserContext(), req)
+	if err != nil {
+		if errors.Is(err, usecase.ErrEmailAlreadyExists) {
+			return response.Error(c, fiber.StatusConflict, err.Error())
+		}
+		return response.Error(c, fiber.StatusInternalServerError, "Failed to register with Google")
+	}
+
+	setRefreshTokenCookie(c, refreshToken)
+
+	return response.Success(c, fiber.StatusCreated, "User registered successfully via Google", authResp)
 }
 
 // setRefreshTokenCookie sets the refresh token as an HTTPOnly cookie.

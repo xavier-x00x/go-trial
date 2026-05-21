@@ -10,7 +10,7 @@ type User struct {
 	Email        string     `gorm:"type:varchar(255);uniqueIndex;not null" json:"email"`
 	Phone        *string    `gorm:"type:varchar(20);uniqueIndex;comment:Nomor telepon;null OK" json:"phone,omitempty"`
 	Password     string     `gorm:"type:varchar(255);not null" json:"-"`
-	Role         string     `gorm:"type:varchar(50);not null;default:'staff'" json:"role"`
+	Role         string     `gorm:"type:varchar(50);not null;default:''" json:"role"`
 	AuthProvider string     `gorm:"type:varchar(50);not null;default:'local'" json:"auth_provider"`
 	GoogleID     *string    `gorm:"type:varchar(255);uniqueIndex;null" json:"google_id,omitempty"`
 	PIN          *string    `gorm:"type:varchar(20);index" json:"pin,omitempty"`
@@ -20,4 +20,5 @@ type User struct {
 	CreatedAt    time.Time  `json:"created_at"`
 	UpdatedAt    time.Time  `json:"updated_at"`
 	DeletedAt    *time.Time `gorm:"uniqueIndex:idx_username_deleted" json:"-"`
+	Store        *Store     `gorm:"foreignKey:StoreID" json:"store,omitempty"`
 }
