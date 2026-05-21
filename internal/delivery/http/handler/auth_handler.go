@@ -90,7 +90,7 @@ func (h *AuthHandler) RefreshToken(c *fiber.Ctx) error {
 		return response.Error(c, fiber.StatusUnauthorized, "Refresh token not found")
 	}
 
-	resp, err := h.authUseCase.RefreshToken(c.UserContext(), refreshToken)
+	resp, newRefreshToken, err := h.authUseCase.RefreshToken(c.UserContext(), refreshToken)
 	if err != nil {
 		if errors.Is(err, usecase.ErrInvalidRefreshToken) {
 			clearRefreshTokenCookie(c)
@@ -98,6 +98,8 @@ func (h *AuthHandler) RefreshToken(c *fiber.Ctx) error {
 		}
 		return response.Error(c, fiber.StatusInternalServerError, "Failed to refresh token")
 	}
+
+	setRefreshTokenCookie(c, newRefreshToken)
 
 	return response.Success(c, fiber.StatusOK, "Token refreshed successfully", resp)
 }

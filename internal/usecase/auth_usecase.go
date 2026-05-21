@@ -44,7 +44,7 @@ type AuthUseCase interface {
 	GoogleLoginWithToken(ctx context.Context, req dto.GoogleTokenLoginRequest) (*dto.AuthResponse, string, error)
 	RegisterWithGoogle(ctx context.Context, req dto.GoogleTokenLoginRequest) (*dto.AuthResponse, string, error)
 	GetGoogleLoginURL() string
-	RefreshToken(ctx context.Context, refreshTokenStr string) (*dto.RefreshResponse, error)
+	RefreshToken(ctx context.Context, refreshTokenStr string) (*dto.RefreshResponse, string, error)
 	GetMe(ctx context.Context, userID string) (*dto.UserResponse, error)
 	GetAllUsers(ctx context.Context) ([]dto.UserResponse, error)
 	GetAllUsersWithPagination(ctx context.Context, meta *dto.MetaRequest) ([]dto.UserResponse, *entity.Meta, error)
@@ -217,36 +217,41 @@ func (u *authUseCase) Login(ctx context.Context, req dto.LoginRequest) (*dto.Aut
 }
 
 // RefreshToken validates the refresh token and issues a new access token.
-func (u *authUseCase) RefreshToken(ctx context.Context, refreshTokenStr string) (*dto.RefreshResponse, error) {
+func (u *authUseCase) RefreshToken(ctx context.Context, refreshTokenStr string) (*dto.RefreshResponse, string, error) {
 	claims, err := u.jwtManager.ValidateToken(refreshTokenStr)
 	if err != nil {
-		return nil, ErrInvalidRefreshToken
+		return nil, "", ErrInvalidRefreshToken
 	}
 
 	if claims.Type != jwtPkg.RefreshToken {
-		return nil, ErrInvalidRefreshToken
+		return nil, "", ErrInvalidRefreshToken
 	}
 
 	// Verify user still exists and is active
 	user, err := u.userRepo.FindByID(ctx, claims.UserID)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if user == nil {
-		return nil, ErrUserNotFound
+		return nil, "", ErrUserNotFound
 	}
 	if user.IsActive != nil && !*user.IsActive {
-		return nil, ErrAccountInactive
+		return nil, "", ErrAccountInactive
 	}
 
 	accessToken, err := u.jwtManager.GenerateAccessToken(user.ID, user.Email, user.Role, user.StoreID)
 	if err != nil {
-		return nil, err
+		return nil, "", err
+	}
+
+	newRefreshToken, err := u.jwtManager.GenerateRefreshToken(user.ID, user.Email, user.Role, user.StoreID)
+	if err != nil {
+		return nil, "", err
 	}
 
 	return &dto.RefreshResponse{
 		AccessToken: accessToken,
-	}, nil
+	}, newRefreshToken, nil
 }
 
 // GetMe returns the current user's profile.
