@@ -11,9 +11,7 @@ import (
 )
 
 var (
-	ErrCustomerNotFound   = errors.New("customer not found")
-	ErrCustomerCodeExists = errors.New("customer code already exists")
-	ErrCustomerPhoneExists = errors.New("customer phone already exists")
+	ErrCustomerNotFound = errors.New("customer not found")
 )
 
 type CustomerUseCase interface {
@@ -40,12 +38,14 @@ func NewCustomerUseCase(customerRepo repository.CustomerRepository, coaRepo repo
 }
 
 func (u *customerUseCase) Create(ctx context.Context, req dto.CreateCustomerRequest) (*dto.CustomerResponse, error) {
+	var fe FieldErrors
+
 	existing, err := u.customerRepo.FindByCode(ctx, req.Code)
 	if err != nil {
 		return nil, err
 	}
 	if existing != nil {
-		return nil, ErrCustomerCodeExists
+		fe.Add("code", "kode pelanggan sudah digunakan")
 	}
 
 	if req.PhoneNumber != nil {
@@ -54,8 +54,12 @@ func (u *customerUseCase) Create(ctx context.Context, req dto.CreateCustomerRequ
 			return nil, err
 		}
 		if existing != nil {
-			return nil, ErrCustomerPhoneExists
+			fe.Add("phone_number", "nomor telepon sudah digunakan")
 		}
+	}
+
+	if len(fe.Errors) > 0 {
+		return nil, &fe
 	}
 
 	pointBalance := req.PointBalance
@@ -150,12 +154,16 @@ func (u *customerUseCase) Update(ctx context.Context, id string, req dto.UpdateC
 	}
 
 	if req.Code != nil && *req.Code != customer.Code {
+		var fe FieldErrors
 		existing, err := u.customerRepo.FindByCode(ctx, *req.Code)
 		if err != nil {
 			return nil, err
 		}
 		if existing != nil {
-			return nil, ErrCustomerCodeExists
+			fe.Add("code", "kode pelanggan sudah digunakan")
+		}
+		if len(fe.Errors) > 0 {
+			return nil, &fe
 		}
 		customer.Code = *req.Code
 	}

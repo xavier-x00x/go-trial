@@ -14,4 +14,6 @@ type ChartOfAccountRepository interface {
 	FindByType(ctx context.Context, accountType string) ([]entity.ChartOfAccount, error)
 	Update(ctx context.Context, coa *entity.ChartOfAccount) error
 	Delete(ctx context.Context, id string) error
+	BulkCreate(ctx context.Context, coas []entity.ChartOfAccount) error
+	FindByParentID(ctx context.Context, parentID *string) ([]entity.ChartOfAccount, error)
 }

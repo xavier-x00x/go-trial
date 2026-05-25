@@ -25,7 +25,7 @@ func (r *productCategoryRepository) Create(ctx context.Context, cat *entity.Prod
 
 func (r *productCategoryRepository) FindByID(ctx context.Context, id string) (*entity.ProductCategory, error) {
 	var cat entity.ProductCategory
-	err := r.db.WithContext(ctx).Where("id = ?", id).First(&cat).Error
+	err := r.db.WithContext(ctx).Preload("Parent").Where("id = ?", id).First(&cat).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
@@ -49,7 +49,7 @@ func (r *productCategoryRepository) FindBySlug(ctx context.Context, slug string)
 
 func (r *productCategoryRepository) FindAll(ctx context.Context) ([]entity.ProductCategory, error) {
 	var cats []entity.ProductCategory
-	err := r.db.WithContext(ctx).Find(&cats).Error
+	err := r.db.WithContext(ctx).Preload("Parent").Find(&cats).Error
 	if err != nil {
 		return nil, fmt.Errorf("failed to find categories: %w", err)
 	}
@@ -57,7 +57,7 @@ func (r *productCategoryRepository) FindAll(ctx context.Context) ([]entity.Produ
 }
 
 func (r *productCategoryRepository) FindAllWithPagination(ctx context.Context, filter entity.QueryFilter) ([]entity.ProductCategory, *entity.Meta, error) {
-	baseQuery := r.db.Model(&entity.ProductCategory{})
+	baseQuery := r.db.Model(&entity.ProductCategory{}).Preload("Parent")
 	return PaginateAndFilter[entity.ProductCategory](r.db, baseQuery, filter)
 }
 

@@ -12,5 +12,5 @@ type ProductCategory struct {
 	Parent           *ProductCategory `gorm:"foreignKey:ParentID" json:"parent,omitempty"`           // Relasi ke kategori induk
 	Name             string           `gorm:"type:varchar(100);not null" json:"name"`                // Nama kategori (cth: Sembako)
 	Slug             string           `gorm:"type:varchar(120);uniqueIndex;not null" json:"slug"`    // SEO/URL Friendly identifier
-	DefaultMarkupPct decimal.Decimal  `gorm:"type:decimal(5,2);default:0" json:"default_markup_pct"` // Markup default untuk auto-pricing (Fallback System)
+	DefaultMarkupPct decimal.Decimal  `gorm:"type:decimal(7,2);default:0" json:"default_markup_pct"` // Markup default untuk auto-pricing (Fallback System)
 }

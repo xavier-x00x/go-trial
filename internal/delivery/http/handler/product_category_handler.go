@@ -36,8 +36,8 @@ func (h *ProductCategoryHandler) Create(c *fiber.Ctx) error {
 
 	resp, err := h.categoryUseCase.Create(c.UserContext(), req)
 	if err != nil {
-		if errors.Is(err, usecase.ErrCategorySlugExists) {
-			return response.Error(c, fiber.StatusConflict, err.Error())
+		if handleFieldErrors(c, err) {
+			return nil
 		}
 		return response.Error(c, fiber.StatusInternalServerError, "Failed to create category")
 	}
@@ -105,8 +105,8 @@ func (h *ProductCategoryHandler) Update(c *fiber.Ctx) error {
 		if errors.Is(err, usecase.ErrCategoryNotFound) {
 			return response.Error(c, fiber.StatusNotFound, err.Error())
 		}
-		if errors.Is(err, usecase.ErrCategorySlugExists) {
-			return response.Error(c, fiber.StatusConflict, err.Error())
+		if handleFieldErrors(c, err) {
+			return nil
 		}
 		return response.Error(c, fiber.StatusInternalServerError, "Failed to update category")
 	}

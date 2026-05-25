@@ -33,8 +33,8 @@ func (h *RolePermissionHandler) CreateRole(c *fiber.Ctx) error {
 	
 	result, err := h.uc.CreateRole(c.UserContext(), req)
 	if err != nil {
-		if errors.Is(err, usecase.ErrRoleNameExists) {
-			return response.Error(c, fiber.StatusConflict, err.Error())
+		if handleFieldErrors(c, err) {
+			return nil
 		}
 		return response.Error(c, fiber.StatusInternalServerError, err.Error())
 	}
@@ -104,8 +104,8 @@ func (h *RolePermissionHandler) UpdateRole(c *fiber.Ctx) error {
 		if errors.Is(err, usecase.ErrRoleNotFound) {
 			return response.Error(c, fiber.StatusNotFound, err.Error())
 		}
-		if errors.Is(err, usecase.ErrRoleNameExists) {
-			return response.Error(c, fiber.StatusConflict, err.Error())
+		if handleFieldErrors(c, err) {
+			return nil
 		}
 		return response.Error(c, fiber.StatusInternalServerError, err.Error())
 	}
@@ -138,8 +138,8 @@ func (h *RolePermissionHandler) CreatePermission(c *fiber.Ctx) error {
 	
 	result, err := h.uc.CreatePermission(c.UserContext(), req)
 	if err != nil {
-		if errors.Is(err, usecase.ErrPermPathExists) {
-			return response.Error(c, fiber.StatusConflict, err.Error())
+		if handleFieldErrors(c, err) {
+			return nil
 		}
 		return response.Error(c, fiber.StatusInternalServerError, err.Error())
 	}
@@ -197,8 +197,8 @@ func (h *RolePermissionHandler) UpdatePermission(c *fiber.Ctx) error {
 		if errors.Is(err, usecase.ErrPermNotFound) {
 			return response.Error(c, fiber.StatusNotFound, err.Error())
 		}
-		if errors.Is(err, usecase.ErrPermPathExists) {
-			return response.Error(c, fiber.StatusConflict, err.Error())
+		if handleFieldErrors(c, err) {
+			return nil
 		}
 		return response.Error(c, fiber.StatusInternalServerError, err.Error())
 	}

@@ -75,6 +75,25 @@ func (r *chartOfAccountRepository) Update(ctx context.Context, coa *entity.Chart
 	return uow.GetTx(ctx, r.db).Save(coa).Error
 }
 
+func (r *chartOfAccountRepository) FindByParentID(ctx context.Context, parentID *string) ([]entity.ChartOfAccount, error) {
+	var coas []entity.ChartOfAccount
+	query := r.db.WithContext(ctx).Where("deleted_at IS NULL")
+	if parentID == nil || *parentID == "" {
+		query = query.Where("parent_id IS NULL")
+	} else {
+		query = query.Where("parent_id = ?", *parentID)
+	}
+	err := query.Order("account_code ASC").Find(&coas).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to find chart of accounts by parent: %w", err)
+	}
+	return coas, nil
+}
+
+func (r *chartOfAccountRepository) BulkCreate(ctx context.Context, coas []entity.ChartOfAccount) error {
+	return uow.GetTx(ctx, r.db).Create(&coas).Error
+}
+
 func (r *chartOfAccountRepository) Delete(ctx context.Context, id string) error {
 	var coa entity.ChartOfAccount
 	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&coa).Error; err != nil {

@@ -19,7 +19,6 @@ import (
 var (
 	ErrPurchaseReturnNotFound = errors.New("purchase return not found")
 	ErrPRInvalidStatus        = errors.New("purchase return status is not DRAFT")
-	ErrPRQtyExceed            = errors.New("return quantity exceeds invoice quantity")
 )
 
 type PurchaseReturnUseCase interface {
@@ -71,18 +70,23 @@ func NewPurchaseReturnUseCase(cfg PurchaseReturnConfig) PurchaseReturnUseCase {
 }
 
 func (u *purchaseReturnUseCaseImpl) Create(ctx context.Context, userID string, req dto.CreatePurchaseReturnRequest) (*dto.PurchaseReturnDetailResponse, error) {
+	var fe FieldErrors
+
 	pi, err := u.piRepo.FindByID(ctx, req.PurchaseInvoiceID.String())
 	if err != nil || pi == nil {
-		return nil, errors.New("purchase invoice not found")
+		fe.Add("purchase_invoice_id", "purchase invoice tidak ditemukan")
+		return nil, &fe
 	}
 
 	if pi.Status != entity.PurchaseInvoiceStatusPosted {
-		return nil, errors.New("only posted invoices can be returned")
+		fe.Add("purchase_invoice_id", "hanya invoice yang sudah diposting yang dapat diretur")
+		return nil, &fe
 	}
 
 	user, err := u.userRepo.FindByID(ctx, userID)
 	if err != nil || user == nil {
-		return nil, errors.New("user not found")
+		fe.Add("created_by", "user tidak ditemukan")
+		return nil, &fe
 	}
 
 	userUUID, err := uuid.Parse(userID)
@@ -102,11 +106,13 @@ func (u *purchaseReturnUseCaseImpl) Create(ctx context.Context, userID string, r
 	for i, item := range req.Items {
 		piItem, exists := piItemsMap[item.PurchaseInvoiceItemID.String()]
 		if !exists {
-			return nil, errors.New("invoice item not found")
+			fe.Add("purchase_invoice_item_id", "item invoice tidak ditemukan")
+			return nil, &fe
 		}
 
 		if item.QtyReturn.GreaterThan(piItem.QtyInvoiced) {
-			return nil, ErrPRQtyExceed
+			fe.Add("qty_return", "jumlah retur melebihi jumlah invoice")
+			return nil, &fe
 		}
 
 		lineSubtotal := item.QtyReturn.Mul(piItem.UnitPrice)

@@ -13,9 +13,8 @@ import (
 )
 
 var (
-	ErrSupplierNotFound   = errors.New("supplier not found")
-	ErrSupplierCodeExists = errors.New("supplier code already exists")
-	ErrSupplierNotActive  = errors.New("supplier is not active")
+	ErrSupplierNotFound  = errors.New("supplier not found")
+	ErrSupplierNotActive = errors.New("supplier is not active")
 )
 
 type SupplierUseCase interface {
@@ -42,12 +41,18 @@ func NewSupplierUseCase(supplierRepo repository.SupplierRepository, coaRepo repo
 }
 
 func (u *supplierUseCase) Create(ctx context.Context, req dto.CreateSupplierRequest) (*dto.SupplierResponse, error) {
+	var fe FieldErrors
+
 	existing, err := u.supplierRepo.FindByCode(ctx, req.Code)
 	if err != nil {
 		return nil, err
 	}
 	if existing != nil {
-		return nil, ErrSupplierCodeExists
+		fe.Add("code", "kode supplier sudah digunakan")
+	}
+
+	if len(fe.Errors) > 0 {
+		return nil, &fe
 	}
 
 	supplier := &entity.Supplier{}

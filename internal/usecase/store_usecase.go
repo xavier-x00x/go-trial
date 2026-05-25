@@ -13,8 +13,7 @@ import (
 )
 
 var (
-	ErrStoreNotFound   = errors.New("store not found")
-	ErrStoreCodeExists = errors.New("store code already exists")
+	ErrStoreNotFound = errors.New("store not found")
 )
 
 // StoreUseCase defines the business logic for store management.
@@ -44,13 +43,18 @@ func NewStoreUseCase(
 
 // Create creates a new store within a UoW transaction.
 func (u *storeUseCase) Create(ctx context.Context, req dto.CreateStoreRequest) (*dto.StoreResponse, error) {
-	// Check code uniqueness
+	var fe FieldErrors
+
 	existing, err := u.storeRepo.FindByCode(ctx, req.Code)
 	if err != nil {
 		return nil, err
 	}
 	if existing != nil {
-		return nil, ErrStoreCodeExists
+		fe.Add("code", "kode toko sudah digunakan")
+	}
+
+	if len(fe.Errors) > 0 {
+		return nil, &fe
 	}
 
 	id, err := uuid.NewV7()
@@ -157,14 +161,17 @@ func (u *storeUseCase) Update(ctx context.Context, id string, req dto.UpdateStor
 		return nil, ErrStoreNotFound
 	}
 
-	// Check code uniqueness if changed
 	if req.Code != nil && *req.Code != store.Code {
+		var fe FieldErrors
 		existing, err := u.storeRepo.FindByCode(ctx, *req.Code)
 		if err != nil {
 			return nil, err
 		}
 		if existing != nil {
-			return nil, ErrStoreCodeExists
+			fe.Add("code", "kode toko sudah digunakan")
+		}
+		if len(fe.Errors) > 0 {
+			return nil, &fe
 		}
 		store.Code = *req.Code
 	}

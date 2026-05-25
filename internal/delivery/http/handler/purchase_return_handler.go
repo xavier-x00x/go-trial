@@ -25,6 +25,9 @@ func (h *PurchaseReturnHandler) Create(c *fiber.Ctx) error {
 	userID := c.Locals("user_id").(string)
 	result, err := h.uc.Create(c.UserContext(), userID, req)
 	if err != nil {
+		if handleFieldErrors(c, err) {
+			return nil
+		}
 		return response.Error(c, fiber.StatusInternalServerError, err.Error())
 	}
 

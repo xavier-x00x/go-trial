@@ -108,33 +108,41 @@ func (u *purchaseInvoiceUseCaseImpl) Create(ctx context.Context, userID string, 
 		return nil, err
 	}
 
+	var fe FieldErrors
+
 	if len(req.Items) == 0 {
-		return nil, errors.New("items is required")
+		fe.Add("items", "items harus diisi")
+		return nil, &fe
 	}
 
 	supplier, err := u.supplierRepo.FindByID(ctx, req.SupplierID.String())
 	if err != nil || supplier == nil {
-		return nil, errors.New("supplier not found")
+		fe.Add("supplier_id", "supplier tidak ditemukan")
+		return nil, &fe
 	}
 
 	store, err := u.storeRepo.FindByID(ctx, req.StoreID.String())
 	if err != nil || store == nil {
-		return nil, errors.New("store not found")
+		fe.Add("store_id", "toko tidak ditemukan")
+		return nil, &fe
 	}
 
 	warehouse, err := u.warehouseRepo.FindByID(ctx, req.WarehouseID.String())
 	if err != nil || warehouse == nil {
-		return nil, errors.New("warehouse not found")
+		fe.Add("warehouse_id", "gudang tidak ditemukan")
+		return nil, &fe
 	}
 
 	po, err := u.purchaseOrderRepo.FindByID(ctx, req.PurchaseOrderID.String())
 	if err != nil || po == nil {
-		return nil, errors.New("purchase order not found")
+		fe.Add("purchase_order_id", "purchase order tidak ditemukan")
+		return nil, &fe
 	}
 
 	creator, err := u.userRepo.FindByID(ctx, userID)
 	if err != nil || creator == nil {
-		return nil, errors.New("creator user not found")
+		fe.Add("created_by", "user tidak ditemukan")
+		return nil, &fe
 	}
 
 	invoiceDate := req.InvoiceDate

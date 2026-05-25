@@ -14,3 +14,23 @@ type UpdateChartOfAccountRequest struct {
 	NormalBalance *string `json:"normal_balance,omitempty" validate:"omitempty,oneof=DEBIT CREDIT"`
 	IsActive     *bool   `json:"is_active,omitempty"`
 }
+
+type AccountImportRow struct {
+	RowNumber     int    `json:"row_number"`
+	AccountCode   string `json:"account_code"`
+	Name          string `json:"name"`
+	AccountType   string `json:"account_type"`
+	NormalBalance string `json:"normal_balance"`
+}
+
+type AccountImportResult struct {
+	TotalRows   int            `json:"total_rows"`
+	SuccessRows int            `json:"success_rows"`
+	ErrorRows   int            `json:"error_rows"`
+	Errors      []ImportRowError `json:"errors,omitempty"`
+}
+
+type ImportRowError struct {
+	RowNumber int    `json:"row_number"`
+	Message  string `json:"message"`
+}

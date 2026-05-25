@@ -141,13 +141,13 @@ func (u *masterDataProposalUseCaseImpl) Create(ctx context.Context, userID strin
 
 	proposal := &entity.MasterDataProposal{
 		ReferenceNumber: refNum,
-		EntityType:     req.EntityType,
-		ActionType:     req.ActionType,
-		TotalItems:     len(items),
-		Reason:         req.Reason,
-		Status:         entity.ProposalStatusPending,
-		ProposedByID:   userUUID,
-		Items:          items,
+		EntityType:      req.EntityType,
+		ActionType:      req.ActionType,
+		TotalItems:      len(items),
+		Reason:          req.Reason,
+		Status:          entity.ProposalStatusPending,
+		ProposedByID:    userUUID,
+		Items:           items,
 	}
 
 	if err := proposal.GenerateID(); err != nil {
@@ -217,12 +217,12 @@ func (u *masterDataProposalUseCaseImpl) GetAllWithPagination(ctx context.Context
 	filter := BuildQueryFilter(meta, allowedOrder, searchColumns)
 	filter.Conditions["deleted_at"] = nil
 
-	data, resMeta, err := u.repo.FindAllWithPaginationGrouped(ctx, filter)
+	data, resMeta, err := u.repo.FindAllWithPagination(ctx, filter)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	var resp []dto.MasterDataProposalListResponse
+	resp := []dto.MasterDataProposalListResponse{}
 	for _, p := range data {
 		resp = append(resp, *toMasterDataProposalListResponse(&p))
 	}
@@ -899,19 +899,27 @@ func executeUpdateTax(ctx context.Context, repo repository.TaxRepository, id str
 }
 
 func toMasterDataProposalListResponse(p *entity.MasterDataProposal) *dto.MasterDataProposalListResponse {
-	return &dto.MasterDataProposalListResponse{
+	resp := &dto.MasterDataProposalListResponse{
 		ID:              p.ID,
 		ReferenceNumber: p.ReferenceNumber,
-		EntityType:     p.EntityType,
-		ActionType:     p.ActionType,
-		TotalItems:     p.TotalItems,
-		Status:         p.Status,
-		ProposedByID:   p.ProposedByID,
-		ReviewedByID:   p.ReviewedByID,
-		ReviewedAt:     p.ReviewedAt,
-		Reason:         p.Reason,
-		CreatedAt:      p.CreatedAt,
+		EntityType:      p.EntityType,
+		ActionType:      p.ActionType,
+		TotalItems:      p.TotalItems,
+		Status:          p.Status,
+		ProposedByID:    p.ProposedByID,
+		ReviewedByID:    p.ReviewedByID,
+		ReviewedAt:      p.ReviewedAt,
+		Reason:          p.Reason,
+		CreatedAt:       p.CreatedAt,
 	}
+	if p.ProposedBy.Name != "" {
+		resp.ProposedByName = p.ProposedBy.Name
+	}
+	if p.ReviewedBy != nil && p.ReviewedBy.Name != "" {
+		name := p.ReviewedBy.Name
+		resp.ReviewedByName = &name
+	}
+	return resp
 }
 
 func toMasterDataProposalDetailResponse(p *entity.MasterDataProposal) *dto.MasterDataProposalDetailResponse {
@@ -929,18 +937,18 @@ func toMasterDataProposalDetailResponse(p *entity.MasterDataProposal) *dto.Maste
 	return &dto.MasterDataProposalDetailResponse{
 		ID:              p.ID,
 		ReferenceNumber: p.ReferenceNumber,
-		EntityType:     p.EntityType,
-		ActionType:     p.ActionType,
-		TotalItems:     p.TotalItems,
-		Status:         p.Status,
-		ProposedByID:   p.ProposedByID,
-		ReviewedByID:   p.ReviewedByID,
-		ReviewedAt:     p.ReviewedAt,
-		Reason:         p.Reason,
-		ReviewNotes:    p.ReviewNotes,
-		CreatedAt:      p.CreatedAt,
-		UpdatedAt:      p.UpdatedAt,
-		Items:         items,
+		EntityType:      p.EntityType,
+		ActionType:      p.ActionType,
+		TotalItems:      p.TotalItems,
+		Status:          p.Status,
+		ProposedByID:    p.ProposedByID,
+		ReviewedByID:    p.ReviewedByID,
+		ReviewedAt:      p.ReviewedAt,
+		Reason:          p.Reason,
+		ReviewNotes:     p.ReviewNotes,
+		CreatedAt:       p.CreatedAt,
+		UpdatedAt:       p.UpdatedAt,
+		Items:           items,
 	}
 }
 
@@ -994,8 +1002,8 @@ func (u *masterDataProposalUseCaseImpl) BulkLinkProductSupplier(ctx context.Cont
 		}
 
 		proposalItem := entity.MasterDataProposalItem{
-			SeqNo:        i + 1,
-			PayloadJSON:   string(payloadJSON),
+			SeqNo:       i + 1,
+			PayloadJSON: string(payloadJSON),
 		}
 		if err := proposalItem.GenerateID(); err != nil {
 			failedCount++
@@ -1004,13 +1012,13 @@ func (u *masterDataProposalUseCaseImpl) BulkLinkProductSupplier(ctx context.Cont
 
 		proposal := &entity.MasterDataProposal{
 			ReferenceNumber: refNum,
-			EntityType:     entity.ProposalEntityProductSupplier,
-			ActionType:     entity.ProposalActionCreate,
-			TotalItems:     len(req.Items),
-			Reason:        req.Reason,
-			Status:        entity.ProposalStatusPending,
-			ProposedByID:  userUUID,
-			Items:        []entity.MasterDataProposalItem{proposalItem},
+			EntityType:      entity.ProposalEntityProductSupplier,
+			ActionType:      entity.ProposalActionCreate,
+			TotalItems:      len(req.Items),
+			Reason:          req.Reason,
+			Status:          entity.ProposalStatusPending,
+			ProposedByID:    userUUID,
+			Items:           []entity.MasterDataProposalItem{proposalItem},
 		}
 
 		if err := proposal.GenerateID(); err != nil {
@@ -1035,9 +1043,9 @@ func (u *masterDataProposalUseCaseImpl) BulkLinkProductSupplier(ctx context.Cont
 
 	return &dto.BulkProposalResponse{
 		ReferenceNumbers: refNumbers,
-		TotalCount:    len(req.Items),
-		SuccessCount:  successCount,
-		FailedCount: failedCount,
-		Proposals:  proposalResponses,
+		TotalCount:       len(req.Items),
+		SuccessCount:     successCount,
+		FailedCount:      failedCount,
+		Proposals:        proposalResponses,
 	}, nil
 }

@@ -304,6 +304,14 @@
     "name": "Mengubah Akun"
   },
   {
+    "path": "accounts:import",
+    "name": "Import Akun"
+  },
+  {
+    "path": "accounts:delete",
+    "name": "Menghapus Akun"
+  },
+  {
     "path": "customers:view",
     "name": "Melihat Pelanggan"
   },

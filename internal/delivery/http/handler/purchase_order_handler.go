@@ -41,6 +41,9 @@ func (h *PurchaseOrderHandler) Create(c *fiber.Ctx) error {
 	userID := getUserIDFromPOContext(c)
 	result, err := h.uc.Create(c.UserContext(), userID, req)
 	if err != nil {
+		if handleFieldErrors(c, err) {
+			return nil
+		}
 		return response.Error(c, fiber.StatusInternalServerError, err.Error())
 	}
 	return response.Success(c, fiber.StatusCreated, "Purchase order created successfully", result)
@@ -58,6 +61,9 @@ func (h *PurchaseOrderHandler) CreateFromPlanning(c *fiber.Ctx) error {
 	userID := getUserIDFromPOContext(c)
 	result, err := h.uc.CreateFromPlanning(c.UserContext(), userID, req)
 	if err != nil {
+		if handleFieldErrors(c, err) {
+			return nil
+		}
 		return response.Error(c, fiber.StatusInternalServerError, err.Error())
 	}
 	return response.Success(c, fiber.StatusCreated, "Purchase order(s) created from planning", result)
@@ -152,6 +158,9 @@ func (h *PurchaseOrderHandler) BulkCreateFromApprovedPlanning(c *fiber.Ctx) erro
 	userID := getUserIDFromPOContext(c)
 	result, err := h.uc.BulkCreateFromApprovedPlanning(c.UserContext(), userID, req.StoreID.String(), req.WarehouseID.String())
 	if err != nil {
+		if handleFieldErrors(c, err) {
+			return nil
+		}
 		return response.Error(c, fiber.StatusInternalServerError, err.Error())
 	}
 	return response.Success(c, fiber.StatusCreated, "Purchase orders created from approved planning", result)

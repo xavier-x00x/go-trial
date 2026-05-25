@@ -14,10 +14,8 @@ import (
 )
 
 var (
-	ErrRoleNotFound   = errors.New("role not found")
-	ErrRoleNameExists = errors.New("role name already exists")
-	ErrPermNotFound   = errors.New("permission not found")
-	ErrPermPathExists = errors.New("permission path already exists")
+	ErrRoleNotFound = errors.New("role not found")
+	ErrPermNotFound = errors.New("permission not found")
 )
 
 type RolePermissionUseCase interface {
@@ -58,9 +56,13 @@ func NewRolePermissionUseCase(
 }
 
 func (u *rolePermissionUseCase) CreateRole(ctx context.Context, req dto.CreateRoleRequest) (*dto.RoleResponse, error) {
+	var fe FieldErrors
 	existing, _ := u.rolePermRepo.FindByName(ctx, req.Name)
 	if existing != nil {
-		return nil, ErrRoleNameExists
+		fe.Add("name", "nama role sudah digunakan")
+	}
+	if len(fe.Errors) > 0 {
+		return nil, &fe
 	}
 
 	id, _ := uuid.NewV7()
@@ -163,12 +165,16 @@ func (u *rolePermissionUseCase) UpdateRole(ctx context.Context, id string, req d
 	// log print for debugging
 	log.Println("Replacing permissions for role %s: %v", id, req.Permissions)
 
+	var fe FieldErrors
 	if req.Name != nil && *req.Name != role.Name {
 		existing, _ := u.rolePermRepo.FindByName(ctx, *req.Name)
 		if existing != nil {
-			return nil, ErrRoleNameExists
+			fe.Add("name", "nama role sudah digunakan")
 		}
 		role.Name = *req.Name
+	}
+	if len(fe.Errors) > 0 {
+		return nil, &fe
 	}
 
 	if req.Permissions != nil && len(req.Permissions) > 0 {
@@ -205,9 +211,13 @@ func (u *rolePermissionUseCase) DeleteRole(ctx context.Context, id string) error
 }
 
 func (u *rolePermissionUseCase) CreatePermission(ctx context.Context, req dto.CreatePermissionRequest) (*dto.PermissionResponse, error) {
+	var fe FieldErrors
 	existing, _ := u.permissionRepo.FindByPath(ctx, req.Path)
 	if existing != nil {
-		return nil, ErrPermPathExists
+		fe.Add("path", "path permission sudah digunakan")
+	}
+	if len(fe.Errors) > 0 {
+		return nil, &fe
 	}
 
 	id, _ := uuid.NewV7()
@@ -285,12 +295,16 @@ func (u *rolePermissionUseCase) UpdatePermission(ctx context.Context, id string,
 		return nil, ErrPermNotFound
 	}
 
+	var fe FieldErrors
 	if req.Path != nil {
 		existing, _ := u.permissionRepo.FindByPath(ctx, *req.Path)
 		if existing != nil {
-			return nil, ErrPermPathExists
+			fe.Add("path", "path permission sudah digunakan")
 		}
 		perm.Path = *req.Path
+	}
+	if len(fe.Errors) > 0 {
+		return nil, &fe
 	}
 	if req.Name != nil {
 		perm.Name = *req.Name
@@ -378,8 +392,10 @@ func toPermissionResponse(perm *entity.Permission) *dto.PermissionResponse {
 		return nil
 	}
 	return &dto.PermissionResponse{
-		ID:   perm.ID.String(),
-		Path: perm.Path,
-		Name: perm.Name,
+		ID:        perm.ID.String(),
+		Path:      perm.Path,
+		Name:      perm.Name,
+		CreatedAt: perm.CreatedAt,
+		UpdatedAt: perm.UpdatedAt,
 	}
 }

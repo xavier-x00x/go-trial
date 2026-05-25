@@ -4,14 +4,26 @@ import "time"
 
 // ChartOfAccountResponse is the public representation of a chart of account.
 type ChartOfAccountResponse struct {
-	ID            string `json:"id"`
-	AccountCode   string `json:"account_code"`
-	Name          string `json:"name"`
-	AccountType   string `json:"account_type"`
-	NormalBalance string `json:"normal_balance"`
-	IsActive      bool   `json:"is_active"`
-	CreatedAt     string `json:"created_at"`
-	UpdatedAt     string `json:"updated_at"`
+	ID            string  `json:"id"`
+	AccountCode   string  `json:"account_code"`
+	Name          string  `json:"name"`
+	AccountType   string  `json:"account_type"`
+	NormalBalance string  `json:"normal_balance"`
+	IsActive      bool    `json:"is_active"`
+	ParentID      *string `json:"parent_id,omitempty"`
+	CreatedAt     string  `json:"created_at"`
+	UpdatedAt     string  `json:"updated_at"`
+}
+
+// ChartOfAccountTreeResponse is the tree representation with children.
+type ChartOfAccountTreeResponse struct {
+	ID            string                       `json:"id"`
+	AccountCode   string                       `json:"account_code"`
+	Name          string                       `json:"name"`
+	AccountType   string                       `json:"account_type"`
+	NormalBalance string                       `json:"normal_balance"`
+	IsActive      bool                         `json:"is_active"`
+	Children      []ChartOfAccountTreeResponse `json:"children,omitempty"`
 }
 
 // AuthResponse is returned after login or token refresh.
@@ -57,7 +69,9 @@ type RoleResponse struct {
 }
 
 type PermissionResponse struct {
-	ID   string `json:"id"`
-	Path string `json:"path"`
-	Name string `json:"name"`
+	ID        string    `json:"id"`
+	Path      string    `json:"path"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }

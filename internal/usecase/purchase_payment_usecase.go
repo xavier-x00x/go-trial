@@ -98,18 +98,23 @@ func (u *purchasePaymentUseCaseImpl) Create(ctx context.Context, userID string, 
 		return nil, err
 	}
 
+	var fe FieldErrors
+
 	if len(req.Items) == 0 {
-		return nil, errors.New("items is required")
+		fe.Add("items", "items harus diisi")
+		return nil, &fe
 	}
 
 	supplier, err := u.supplierRepo.FindByID(ctx, req.SupplierID.String())
 	if err != nil || supplier == nil {
-		return nil, errors.New("supplier not found")
+		fe.Add("supplier_id", "supplier tidak ditemukan")
+		return nil, &fe
 	}
 
 	creator, err := u.userRepo.FindByID(ctx, userID)
 	if err != nil || creator == nil {
-		return nil, errors.New("creator user not found")
+		fe.Add("created_by", "user tidak ditemukan")
+		return nil, &fe
 	}
 
 	paymentDate := req.PaymentDate
@@ -160,7 +165,8 @@ func (u *purchasePaymentUseCaseImpl) Create(ctx context.Context, userID string, 
 			docAmount = pr.GrandTotal
 			totalReturn = totalReturn.Add(item.PaidAmount.Abs())
 		} else {
-			return nil, errors.New("either purchase_invoice_id or purchase_return_id must be provided")
+			fe.Add("items", "purchase_invoice_id atau purchase_return_id harus diisi")
+			return nil, &fe
 		}
 
 		totalAmount = totalAmount.Add(item.PaidAmount)
@@ -175,11 +181,13 @@ func (u *purchasePaymentUseCaseImpl) Create(ctx context.Context, userID string, 
 	}
 
 	if totalReturn.GreaterThan(totalInvoice) {
-		return nil, errors.New("total return amount cannot exceed total invoice amount")
+		fe.Add("items", "total return tidak boleh melebihi total invoice")
+		return nil, &fe
 	}
 
 	if req.PaymentMode == "GIRO" && req.GiroNumber == nil {
-		return nil, errors.New("giro_number is required when payment_mode is GIRO")
+		fe.Add("giro_number", "giro_number wajib diisi jika payment_mode adalah GIRO")
+		return nil, &fe
 	}
 
 	// Final Total Amount (Cash/Bank Out)

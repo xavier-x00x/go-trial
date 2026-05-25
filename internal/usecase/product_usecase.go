@@ -11,9 +11,7 @@ import (
 )
 
 var (
-	ErrProductNotFound     = errors.New("product not found")
-	ErrProductSKUExists    = errors.New("product sku already exists")
-	ErrProductBarcodeExists = errors.New("product barcode already exists")
+	ErrProductNotFound = errors.New("product not found")
 )
 
 type ProductUseCase interface {
@@ -47,12 +45,14 @@ func NewProductUseCase(
 }
 
 func (u *productUseCase) Create(ctx context.Context, req dto.CreateProductRequest) (*dto.ProductResponse, error) {
+	var fe FieldErrors
+
 	existing, err := u.productRepo.FindBySKU(ctx, req.SKU)
 	if err != nil {
 		return nil, err
 	}
 	if existing != nil {
-		return nil, ErrProductSKUExists
+		fe.Add("sku", "sku sudah digunakan")
 	}
 
 	if req.Barcode != nil {
@@ -61,8 +61,12 @@ func (u *productUseCase) Create(ctx context.Context, req dto.CreateProductReques
 			return nil, err
 		}
 		if existing != nil {
-			return nil, ErrProductBarcodeExists
+			fe.Add("barcode", "barcode sudah digunakan")
 		}
+	}
+
+	if len(fe.Errors) > 0 {
+		return nil, &fe
 	}
 
 	product := &entity.Product{}
@@ -156,14 +160,18 @@ func (u *productUseCase) Update(ctx context.Context, id string, req dto.UpdatePr
 	}
 
 	if req.Barcode != nil && *req.Barcode != "" {
+		var fe FieldErrors
 		if product.Barcode == nil || *req.Barcode != *product.Barcode {
 			existing, err := u.productRepo.FindByBarcode(ctx, *req.Barcode)
 			if err != nil {
 				return nil, err
 			}
 			if existing != nil {
-				return nil, ErrProductBarcodeExists
+				fe.Add("barcode", "barcode sudah digunakan")
 			}
+		}
+		if len(fe.Errors) > 0 {
+			return nil, &fe
 		}
 		product.Barcode = req.Barcode
 	}

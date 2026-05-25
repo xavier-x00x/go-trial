@@ -39,11 +39,8 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 
 	authResp, refreshToken, err := h.authUseCase.Register(c.UserContext(), req)
 	if err != nil {
-		if errors.Is(err, usecase.ErrEmailAlreadyExists) {
-			return response.Error(c, fiber.StatusConflict, err.Error())
-		}
-		if errors.Is(err, usecase.ErrUsernameAlreadyExists) {
-			return response.Error(c, fiber.StatusConflict, err.Error())
+		if handleFieldErrors(c, err) {
+			return nil
 		}
 		return response.Error(c, fiber.StatusInternalServerError, "Failed to register user")
 	}
@@ -182,14 +179,11 @@ func (h *AuthHandler) UpdateUser(c *fiber.Ctx) error {
 
 	result, err := h.authUseCase.UpdateUser(c.UserContext(), id, req)
 	if err != nil {
+		if handleFieldErrors(c, err) {
+			return nil
+		}
 		if errors.Is(err, usecase.ErrUserNotFound) {
 			return response.Error(c, fiber.StatusNotFound, err.Error())
-		}
-		if errors.Is(err, usecase.ErrEmailAlreadyExists) {
-			return response.Error(c, fiber.StatusConflict, err.Error())
-		}
-		if errors.Is(err, usecase.ErrUsernameAlreadyExists) {
-			return response.Error(c, fiber.StatusConflict, err.Error())
 		}
 		return response.Error(c, fiber.StatusInternalServerError, err.Error())
 	}
@@ -277,8 +271,8 @@ func (h *AuthHandler) RegisterWithGoogle(c *fiber.Ctx) error {
 
 	authResp, refreshToken, err := h.authUseCase.RegisterWithGoogle(c.UserContext(), req)
 	if err != nil {
-		if errors.Is(err, usecase.ErrEmailAlreadyExists) {
-			return response.Error(c, fiber.StatusConflict, err.Error())
+		if handleFieldErrors(c, err) {
+			return nil
 		}
 		return response.Error(c, fiber.StatusInternalServerError, "Failed to register with Google")
 	}

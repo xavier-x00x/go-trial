@@ -3,16 +3,20 @@ package usecase
 import (
 	"context"
 	"errors"
+	"regexp"
 
 	"go-trial/internal/delivery/http/dto"
 	"go-trial/internal/domain/entity"
 	"go-trial/internal/domain/repository"
 	"go-trial/internal/infrastructure/uow"
+
+	"github.com/shopspring/decimal"
 )
 
+var slugRegex = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
+
 var (
-	ErrCategoryNotFound   = errors.New("category not found")
-	ErrCategorySlugExists = errors.New("category slug already exists")
+	ErrCategoryNotFound = errors.New("category not found")
 )
 
 type ProductCategoryUseCase interface {
@@ -26,23 +30,36 @@ type ProductCategoryUseCase interface {
 
 type productCategoryUseCase struct {
 	categoryRepo repository.ProductCategoryRepository
-	uow         uow.UnitOfWork
+	uow          uow.UnitOfWork
 }
 
 func NewProductCategoryUseCase(categoryRepo repository.ProductCategoryRepository, uow uow.UnitOfWork) ProductCategoryUseCase {
 	return &productCategoryUseCase{
 		categoryRepo: categoryRepo,
-		uow:        uow,
+		uow:          uow,
 	}
 }
 
 func (u *productCategoryUseCase) Create(ctx context.Context, req dto.CreateCategoryRequest) (*dto.CategoryResponse, error) {
+	var fe FieldErrors
+	if !slugRegex.MatchString(req.Slug) {
+		fe.Add("slug", "slug hanya boleh mengandung huruf kecil, angka, dan tanda hubung (-)")
+	}
+	if req.DefaultMarkupPct.LessThan(decimal.Zero) || req.DefaultMarkupPct.GreaterThan(decimal.NewFromFloat(99999.99)) {
+		fe.Add("default_markup_pct", "default_markup_pct harus antara 0 dan 99999.99")
+	}
+
 	existing, err := u.categoryRepo.FindBySlug(ctx, req.Slug)
 	if err != nil {
 		return nil, err
 	}
 	if existing != nil {
-		return nil, ErrCategorySlugExists
+		fe.Add("slug", "slug sudah digunakan")
+		// return nil, ErrCategorySlugExists
+	}
+
+	if len(fe.Errors) > 0 {
+		return nil, &fe
 	}
 
 	cat := &entity.ProductCategory{}
@@ -52,6 +69,7 @@ func (u *productCategoryUseCase) Create(ctx context.Context, req dto.CreateCateg
 	cat.ParentID = req.ParentID
 	cat.Name = req.Name
 	cat.Slug = req.Slug
+	cat.DefaultMarkupPct = req.DefaultMarkupPct
 
 	txCtx, err := u.uow.Begin(ctx)
 	if err != nil {
@@ -124,24 +142,43 @@ func (u *productCategoryUseCase) Update(ctx context.Context, id string, req dto.
 		return nil, ErrCategoryNotFound
 	}
 
-	if req.Slug != nil && *req.Slug != cat.Slug {
-		existing, err := u.categoryRepo.FindBySlug(ctx, *req.Slug)
-		if err != nil {
-			return nil, err
+	var fe FieldErrors
+
+	if req.Slug != nil {
+		if !slugRegex.MatchString(*req.Slug) {
+			fe.Add("slug", "slug hanya boleh mengandung huruf kecil, angka, dan tanda hubung (-)")
 		}
-		if existing != nil {
-			return nil, ErrCategorySlugExists
+		if req.DefaultMarkupPct != nil {
+			if req.DefaultMarkupPct.LessThan(decimal.Zero) || req.DefaultMarkupPct.GreaterThan(decimal.NewFromFloat(99999.99)) {
+				fe.Add("default_markup_pct", "default_markup_pct harus antara 0 dan 99999.99")
+			}
 		}
-		cat.Slug = *req.Slug
+		if *req.Slug != cat.Slug {
+			existing, err := u.categoryRepo.FindBySlug(ctx, *req.Slug)
+			if err != nil {
+				return nil, err
+			}
+			if existing != nil {
+				fe.Add("slug", "slug sudah digunakan")
+			}
+			cat.Slug = *req.Slug
+		}
 	}
 	if req.Name != nil {
 		cat.Name = *req.Name
 	}
 	if req.ParentID != nil {
+		if req.ParentID.String() == id {
+			fe.Add("parent_id", "parent_id tidak boleh sama dengan ID kategori itu sendiri")
+		}
 		cat.ParentID = req.ParentID
 	}
 	if req.DefaultMarkupPct != nil {
 		cat.DefaultMarkupPct = *req.DefaultMarkupPct
+	}
+
+	if len(fe.Errors) > 0 {
+		return nil, &fe
 	}
 
 	txCtx, err := u.uow.Begin(ctx)
@@ -185,13 +222,37 @@ func (u *productCategoryUseCase) Delete(ctx context.Context, id string) error {
 }
 
 func toCategoryResponse(cat *entity.ProductCategory) dto.CategoryResponse {
-	return dto.CategoryResponse{
-		ID:                cat.ID.String(),
+	resp := dto.CategoryResponse{
+		ID:               cat.ID.String(),
 		ParentID:         cat.ParentID,
 		Name:             cat.Name,
 		Slug:             cat.Slug,
-		DefaultMarkupPct:  cat.DefaultMarkupPct,
+		DefaultMarkupPct: cat.DefaultMarkupPct,
 		CreatedAt:        cat.CreatedAt,
 		UpdatedAt:        cat.UpdatedAt,
 	}
+	if cat.Parent != nil {
+		p := toCategoryResponse(cat.Parent)
+		p.Parent = nil
+		resp.Parent = &p
+	}
+	return resp
+}
+
+func toCategoryListResponse(cat *entity.ProductCategory) dto.CategoryResponse {
+	resp := dto.CategoryResponse{
+		ID:               cat.ID.String(),
+		ParentID:         cat.ParentID,
+		Name:             cat.Name,
+		Slug:             cat.Slug,
+		DefaultMarkupPct: cat.DefaultMarkupPct,
+		CreatedAt:        cat.CreatedAt,
+		UpdatedAt:        cat.UpdatedAt,
+	}
+	if cat.Parent != nil {
+		p := toCategoryResponse(cat.Parent)
+		p.Parent = nil
+		resp.Parent = &p
+	}
+	return resp
 }

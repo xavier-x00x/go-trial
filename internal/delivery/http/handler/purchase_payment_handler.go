@@ -31,6 +31,9 @@ func (h *PurchasePaymentHandler) Create(c *fiber.Ctx) error {
 
 	resp, err := h.uc.Create(c.Context(), userID.(string), req)
 	if err != nil {
+		if handleFieldErrors(c, err) {
+			return nil
+		}
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 

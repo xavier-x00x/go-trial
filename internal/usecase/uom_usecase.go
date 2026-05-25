@@ -13,8 +13,7 @@ import (
 )
 
 var (
-	ErrUOMNotFound   = errors.New("uom not found")
-	ErrUOMCodeExists = errors.New("uom code already exists")
+	ErrUOMNotFound = errors.New("uom not found")
 )
 
 type UOMUseCase interface {
@@ -38,12 +37,16 @@ func NewUOMUseCase(uomRepo repository.UOMRepository, uow uow.UnitOfWork) UOMUseC
 }
 
 func (u *uomUseCase) Create(ctx context.Context, req dto.CreateUOMRequest) (*dto.UOMResponse, error) {
+	var fe FieldErrors
 	existing, err := u.uomRepo.FindByCode(ctx, req.Code)
 	if err != nil {
 		return nil, err
 	}
 	if existing != nil {
-		return nil, ErrUOMCodeExists
+		fe.Add("code", "kode UOM sudah digunakan")
+	}
+	if len(fe.Errors) > 0 {
+		return nil, &fe
 	}
 
 	id, err := uuid.NewV7()
@@ -129,15 +132,19 @@ func (u *uomUseCase) Update(ctx context.Context, id string, req dto.UpdateUOMReq
 		return nil, ErrUOMNotFound
 	}
 
+	var fe FieldErrors
 	if req.Code != nil && *req.Code != uom.Code {
 		existing, err := u.uomRepo.FindByCode(ctx, *req.Code)
 		if err != nil {
 			return nil, err
 		}
 		if existing != nil {
-			return nil, ErrUOMCodeExists
+			fe.Add("code", "kode UOM sudah digunakan")
 		}
 		uom.Code = *req.Code
+	}
+	if len(fe.Errors) > 0 {
+		return nil, &fe
 	}
 	if req.Name != nil {
 		uom.Name = *req.Name

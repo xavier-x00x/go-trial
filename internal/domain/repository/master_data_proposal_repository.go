@@ -14,7 +14,7 @@ type MasterDataProposalRepository interface {
 	FindByProposedByID(ctx context.Context, userID string) ([]entity.MasterDataProposal, error)
 	FindPending(ctx context.Context) ([]entity.MasterDataProposal, error)
 	FindAll(ctx context.Context) ([]entity.MasterDataProposal, error)
-	FindAllWithPaginationGrouped(ctx context.Context, filter entity.QueryFilter) ([]entity.MasterDataProposal, *entity.Meta, error)
+	FindAllWithPagination(ctx context.Context, filter entity.QueryFilter) ([]entity.MasterDataProposal, *entity.Meta, error)
 	Update(ctx context.Context, p *entity.MasterDataProposal) error
 	DeleteItemsByProposalID(ctx context.Context, proposalID string) error
 }

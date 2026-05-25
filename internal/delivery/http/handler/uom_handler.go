@@ -36,8 +36,8 @@ func (h *UOMHandler) Create(c *fiber.Ctx) error {
 
 	resp, err := h.uomUseCase.Create(c.UserContext(), req)
 	if err != nil {
-		if errors.Is(err, usecase.ErrUOMCodeExists) {
-			return response.Error(c, fiber.StatusConflict, err.Error())
+		if handleFieldErrors(c, err) {
+			return nil
 		}
 		return response.Error(c, fiber.StatusInternalServerError, "Failed to create UOM")
 	}
@@ -105,8 +105,8 @@ func (h *UOMHandler) Update(c *fiber.Ctx) error {
 		if errors.Is(err, usecase.ErrUOMNotFound) {
 			return response.Error(c, fiber.StatusNotFound, err.Error())
 		}
-		if errors.Is(err, usecase.ErrUOMCodeExists) {
-			return response.Error(c, fiber.StatusConflict, err.Error())
+		if handleFieldErrors(c, err) {
+			return nil
 		}
 		return response.Error(c, fiber.StatusInternalServerError, "Failed to update UOM")
 	}

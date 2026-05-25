@@ -27,12 +27,16 @@ func PaginateAndFilter[T any](db *gorm.DB, baseQuery *gorm.DB, filter entity.Que
 	var total, totalFiltered int64
 
 	// Clone the base query for filtered results
-	query := baseQuery
+	query := baseQuery.Session(&gorm.Session{})
 
 	// Apply conditions
 	if filter.Conditions != nil {
 		for key, val := range filter.Conditions {
-			query = query.Where(fmt.Sprintf("%s = ?", key), val)
+			if val == nil {
+				query = query.Where(fmt.Sprintf("%s IS NULL", key))
+			} else {
+				query = query.Where(fmt.Sprintf("%s = ?", key), val)
+			}
 		}
 	}
 
@@ -60,10 +64,14 @@ func PaginateAndFilter[T any](db *gorm.DB, baseQuery *gorm.DB, filter entity.Que
 	}
 
 	// Count total (without search, only base conditions)
-	totalQuery := baseQuery
+	totalQuery := baseQuery.Session(&gorm.Session{})
 	if filter.Conditions != nil {
 		for key, val := range filter.Conditions {
-			totalQuery = totalQuery.Where(fmt.Sprintf("%s = ?", key), val)
+			if val == nil {
+				totalQuery = totalQuery.Where(fmt.Sprintf("%s IS NULL", key))
+			} else {
+				totalQuery = totalQuery.Where(fmt.Sprintf("%s = ?", key), val)
+			}
 		}
 	}
 	totalQuery.Count(&total)

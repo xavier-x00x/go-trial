@@ -36,8 +36,8 @@ func (h *COAHandler) Create(c *fiber.Ctx) error {
 
 	resp, err := h.coaUseCase.Create(c.UserContext(), req)
 	if err != nil {
-		if errors.Is(err, usecase.ErrCOACodeExists) {
-			return response.Error(c, fiber.StatusConflict, err.Error())
+		if handleFieldErrors(c, err) {
+			return nil
 		}
 		return response.Error(c, fiber.StatusInternalServerError, "Failed to create chart of account")
 	}
@@ -99,6 +99,66 @@ func (h *COAHandler) GetByType(c *fiber.Ctx) error {
 	return response.Success(c, fiber.StatusOK, "Chart of accounts retrieved successfully", resp)
 }
 
+func (h *COAHandler) GetTree(c *fiber.Ctx) error {
+	resp, err := h.coaUseCase.GetTree(c.UserContext())
+	if err != nil {
+		return response.Error(c, fiber.StatusInternalServerError, "Failed to get chart of accounts tree")
+	}
+
+	return response.Success(c, fiber.StatusOK, "Chart of accounts tree retrieved successfully", resp)
+}
+
+func (h *COAHandler) Delete(c *fiber.Ctx) error {
+	id := c.Params("id")
+
+	err := h.coaUseCase.Delete(c.UserContext(), id)
+	if err != nil {
+		if errors.Is(err, usecase.ErrCOANotFound) {
+			return response.Error(c, fiber.StatusNotFound, err.Error())
+		}
+		if errors.Is(err, usecase.ErrCOAHasChildren) {
+			return response.Error(c, fiber.StatusConflict, err.Error())
+		}
+		return response.Error(c, fiber.StatusInternalServerError, "Failed to delete chart of account")
+	}
+
+	return response.Success(c, fiber.StatusOK, "Chart of account deleted successfully", nil)
+}
+
+func (h *COAHandler) Import(c *fiber.Ctx) error {
+	file, err := c.FormFile("file")
+	if err != nil {
+		return response.Error(c, fiber.StatusBadRequest, "file is required")
+	}
+
+	f, err := file.Open()
+	if err != nil {
+		return response.Error(c, fiber.StatusInternalServerError, "failed to open file")
+	}
+	defer f.Close()
+
+	result, err := h.coaUseCase.Import(c.UserContext(), f, file.Filename)
+	if err != nil {
+		if handleFieldErrors(c, err) {
+			return nil
+		}
+		return response.Error(c, fiber.StatusInternalServerError, err.Error())
+	}
+
+	return response.Success(c, fiber.StatusOK, "Import completed", result)
+}
+
+func (h *COAHandler) DownloadTemplate(c *fiber.Ctx) error {
+	data, err := h.coaUseCase.GenerateTemplate(c.UserContext())
+	if err != nil {
+		return response.Error(c, fiber.StatusInternalServerError, "failed to generate template")
+	}
+
+	c.Set(fiber.HeaderContentType, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	c.Set(fiber.HeaderContentDisposition, `attachment; filename="account_import_template.xlsx"`)
+	return c.Send(data)
+}
+
 func (h *COAHandler) Update(c *fiber.Ctx) error {
 	id := c.Params("id")
 
@@ -113,11 +173,11 @@ func (h *COAHandler) Update(c *fiber.Ctx) error {
 
 	resp, err := h.coaUseCase.Update(c.UserContext(), id, req)
 	if err != nil {
+		if handleFieldErrors(c, err) {
+			return nil
+		}
 		if errors.Is(err, usecase.ErrCOANotFound) {
 			return response.Error(c, fiber.StatusNotFound, err.Error())
-		}
-		if errors.Is(err, usecase.ErrCOACodeExists) {
-			return response.Error(c, fiber.StatusConflict, err.Error())
 		}
 		return response.Error(c, fiber.StatusInternalServerError, "Failed to update chart of account")
 	}

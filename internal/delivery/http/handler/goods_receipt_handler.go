@@ -42,6 +42,9 @@ func (h *GoodsReceiptHandler) Create(c *fiber.Ctx) error {
 	userID := getUserIDFromGRContext(c)
 	result, err := h.uc.Create(c.UserContext(), userID, req)
 	if err != nil {
+		if handleFieldErrors(c, err) {
+			return nil
+		}
 		if errors.Is(err, usecase.ErrOverReceiveNeedsPIN) {
 			return response.Error(c, fiber.StatusForbidden, err.Error())
 		}
@@ -63,6 +66,9 @@ func (h *GoodsReceiptHandler) Update(c *fiber.Ctx) error {
 	userID := getUserIDFromGRContext(c)
 	result, err := h.uc.Update(c.UserContext(), userID, id, req)
 	if err != nil {
+		if handleFieldErrors(c, err) {
+			return nil
+		}
 		if errors.Is(err, usecase.ErrOverReceiveNeedsPIN) {
 			return response.Error(c, fiber.StatusForbidden, err.Error())
 		}
@@ -80,6 +86,9 @@ func (h *GoodsReceiptHandler) Confirm(c *fiber.Ctx) error {
 	id := c.Params("id")
 	userID := getUserIDFromGRContext(c)
 	if err := h.uc.Confirm(c.UserContext(), userID, id, req); err != nil {
+		if handleFieldErrors(c, err) {
+			return nil
+		}
 		return response.Error(c, fiber.StatusInternalServerError, err.Error())
 	}
 	return response.Success(c, fiber.StatusOK, "Goods receipt confirmed successfully", nil)
@@ -134,6 +143,9 @@ func (h *GoodsReceiptHandler) CreateWithInvoice(c *fiber.Ctx) error {
 	userID := getUserIDFromGRContext(c)
 	result, err := h.uc.CreateWithInvoice(c.UserContext(), userID, req)
 	if err != nil {
+		if handleFieldErrors(c, err) {
+			return nil
+		}
 		if errors.Is(err, usecase.ErrOverReceiveNeedsPIN) {
 			return response.Error(c, fiber.StatusForbidden, err.Error())
 		}

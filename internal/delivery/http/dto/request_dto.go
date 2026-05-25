@@ -25,10 +25,11 @@ type GoogleTokenLoginRequest struct {
 
 // CreateCOARequest is the payload for creating a chart of account.
 type CreateCOARequest struct {
-	AccountCode   string `json:"account_code" validate:"required,min=1,max=20"`
-	Name          string `json:"name" validate:"required,min=1,max=100"`
-	AccountType   string `json:"account_type" validate:"required,oneof=ASSET LIABILITY EQUITY REVENUE EXPENSE"`
-	NormalBalance string `json:"normal_balance" validate:"required,oneof=DEBIT CREDIT"`
+	AccountCode   string  `json:"account_code" validate:"required,min=1,max=20"`
+	Name          string  `json:"name" validate:"required,min=1,max=100"`
+	AccountType   string  `json:"account_type" validate:"required,oneof=ASSET LIABILITY EQUITY REVENUE EXPENSE"`
+	NormalBalance string  `json:"normal_balance" validate:"required,oneof=DEBIT CREDIT"`
+	ParentID      *string `json:"parent_id,omitempty" validate:"omitempty,len=36"`
 }
 
 // UpdateCOARequest is the payload for updating a chart of account.
@@ -38,4 +39,5 @@ type UpdateCOARequest struct {
 	AccountType   *string `json:"account_type,omitempty" validate:"omitempty,oneof=ASSET LIABILITY EQUITY REVENUE EXPENSE"`
 	NormalBalance *string `json:"normal_balance,omitempty" validate:"omitempty,oneof=DEBIT CREDIT"`
 	IsActive      *bool   `json:"is_active,omitempty"`
+	ParentID      *string `json:"parent_id,omitempty" validate:"omitempty,len=36"`
 }

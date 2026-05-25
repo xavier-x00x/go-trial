@@ -145,19 +145,24 @@ func (u *goodsReceiptUseCaseImpl) Create(ctx context.Context, userID string, req
 		return nil, ErrPOInvalidStatus
 	}
 
+	var fe FieldErrors
+
 	warehouse, err := u.warehouseRepo.FindByID(ctx, req.WarehouseID.String())
 	if err != nil || warehouse == nil {
-		return nil, errors.New("warehouse not found")
+		fe.Add("warehouse_id", "gudang tidak ditemukan")
+		return nil, &fe
 	}
 
 	user, err := u.userRepo.FindByID(ctx, userID)
 	if err != nil || user == nil {
-		return nil, errors.New("user not found")
+		fe.Add("received_by", "penerima tidak ditemukan")
+		return nil, &fe
 	}
 
 	supplier, err := u.purchaseOrderRepo.FindByIDWithSupplier(ctx, po.ID.String())
 	if err != nil || supplier == nil {
-		return nil, errors.New("supplier not found")
+		fe.Add("supplier_id", "supplier tidak ditemukan")
+		return nil, &fe
 	}
 
 	poItemsMap := make(map[string]entity.PurchaseOrderItem)
@@ -202,14 +207,16 @@ func (u *goodsReceiptUseCaseImpl) Create(ctx context.Context, userID string, req
 				return nil, err
 			}
 			if overrideUser == nil {
-				return nil, errors.New("PIN otorisasi tidak valid")
+				fe.Add("override_pin", "PIN otorisasi tidak valid")
+				return nil, &fe
 			}
 
 			// Cek Role (Supervisor / Kepala Gudang)
 			role := strings.ToUpper(overrideUser.Role)
 			isAuthorized := role == "SUPERVISOR" || role == "KEPALA GUDANG" || role == "KEPALA_GUDANG" || role == "MANAGER" || role == "ADMIN"
 			if !isAuthorized {
-				return nil, errors.New("user pemilik PIN tidak memiliki otoritas untuk override")
+				fe.Add("override_pin", "user pemilik PIN tidak memiliki otoritas untuk override")
+				return nil, &fe
 			}
 
 			overrideUserUUID, err := uuid.Parse(overrideUser.ID)
@@ -238,7 +245,7 @@ func (u *goodsReceiptUseCaseImpl) Create(ctx context.Context, userID string, req
 			TaxPct:              decimal.Zero,
 			TaxAmount:           decimal.Zero,
 			LandedCostAmount:    decimal.Zero,
-			NetUnitPrice:        poItem.UnitPrice, // Default to gross price since PO has no financials
+			NetUnitPrice:        poItem.UnitPrice,
 			RejectReason:        item.RejectReason,
 			Notes:               item.Notes,
 		}
@@ -315,9 +322,12 @@ func (u *goodsReceiptUseCaseImpl) Confirm(ctx context.Context, userID string, id
 		return ErrGRInvalidStatus
 	}
 
+	var fe FieldErrors
+
 	confirmer, err := u.userRepo.FindByID(ctx, userID)
 	if err != nil || confirmer == nil {
-		return errors.New("user not found")
+		fe.Add("confirmed_by", "user tidak ditemukan")
+		return &fe
 	}
 
 	gr.Status = entity.GRStatusConfirmed
@@ -445,6 +455,7 @@ func (u *goodsReceiptUseCaseImpl) Update(ctx context.Context, userID string, id 
 
 	isOverReceivedOverride := false
 	var overrideApprovedByID *uuid.UUID
+	var fe FieldErrors
 
 	items := make([]entity.GoodsReceiptItem, len(req.Items))
 	for i, item := range req.Items {
@@ -476,14 +487,16 @@ func (u *goodsReceiptUseCaseImpl) Update(ctx context.Context, userID string, id 
 				return nil, err
 			}
 			if overrideUser == nil {
-				return nil, errors.New("PIN otorisasi tidak valid")
+				fe.Add("override_pin", "PIN otorisasi tidak valid")
+				return nil, &fe
 			}
 
 			// Cek Role (Supervisor / Kepala Gudang)
 			role := strings.ToUpper(overrideUser.Role)
 			isAuthorized := role == "SUPERVISOR" || role == "KEPALA GUDANG" || role == "KEPALA_GUDANG" || role == "MANAGER" || role == "ADMIN"
 			if !isAuthorized {
-				return nil, errors.New("user pemilik PIN tidak memiliki otoritas untuk override")
+				fe.Add("override_pin", "user pemilik PIN tidak memiliki otoritas untuk override")
+				return nil, &fe
 			}
 
 			overrideUserUUID, err := uuid.Parse(overrideUser.ID)

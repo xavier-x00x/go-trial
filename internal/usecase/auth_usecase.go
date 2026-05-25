@@ -27,13 +27,11 @@ import (
 )
 
 var (
-	ErrEmailAlreadyExists    = errors.New("email already registered")
-	ErrUsernameAlreadyExists = errors.New("username already taken")
-	ErrInvalidCredentials    = errors.New("invalid credentials")
-	ErrInvalidRefreshToken   = errors.New("invalid or expired refresh token")
-	ErrUserNotFound          = errors.New("user not found")
-	ErrAccountInactive       = errors.New("account is inactive")
-	ErrRoleNotAssigned       = errors.New("account is pending approval: role not assigned")
+	ErrInvalidCredentials  = errors.New("invalid credentials")
+	ErrInvalidRefreshToken = errors.New("invalid or expired refresh token")
+	ErrUserNotFound        = errors.New("user not found")
+	ErrAccountInactive     = errors.New("account is inactive")
+	ErrRoleNotAssigned     = errors.New("account is pending approval: role not assigned")
 )
 
 // AuthUseCase defines the business logic for authentication.
@@ -88,13 +86,15 @@ func NewAuthUseCase(
 
 // Register creates a new user within a UoW transaction and returns tokens.
 func (u *authUseCase) Register(ctx context.Context, req dto.RegisterRequest) (*dto.AuthResponse, string, error) {
+	var fe FieldErrors
+
 	// Check if email already exists
 	existing, err := u.userRepo.FindByEmail(ctx, req.Email)
 	if err != nil {
 		return nil, "", err
 	}
 	if existing != nil {
-		return nil, "", ErrEmailAlreadyExists
+		fe.Add("email", "email sudah digunakan")
 	}
 
 	// Check if username already exists
@@ -103,7 +103,11 @@ func (u *authUseCase) Register(ctx context.Context, req dto.RegisterRequest) (*d
 		return nil, "", err
 	}
 	if existing != nil {
-		return nil, "", ErrUsernameAlreadyExists
+		fe.Add("username", "username sudah digunakan")
+	}
+
+	if len(fe.Errors) > 0 {
+		return nil, "", &fe
 	}
 
 	// Hash password
@@ -318,19 +322,23 @@ func (u *authUseCase) UpdateUser(ctx context.Context, id string, req dto.UpdateU
 	if req.Name != nil {
 		user.Name = *req.Name
 	}
+	var fe FieldErrors
+
 	if req.Username != nil {
 		existing, _ := u.userRepo.FindByUsername(ctx, *req.Username)
 		if existing != nil && existing.ID != user.ID {
-			return nil, ErrUsernameAlreadyExists
+			fe.Add("username", "username sudah digunakan")
+		} else {
+			user.Username = *req.Username
 		}
-		user.Username = *req.Username
 	}
 	if req.Email != nil {
 		existing, _ := u.userRepo.FindByEmail(ctx, *req.Email)
 		if existing != nil && existing.ID != user.ID {
-			return nil, ErrEmailAlreadyExists
+			fe.Add("email", "email sudah digunakan")
+		} else {
+			user.Email = *req.Email
 		}
-		user.Email = *req.Email
 	}
 	if req.Phone != nil {
 		user.Phone = req.Phone
@@ -351,6 +359,10 @@ func (u *authUseCase) UpdateUser(ctx context.Context, id string, req dto.UpdateU
 			return nil, err
 		}
 		user.Password = string(hashedPassword)
+	}
+
+	if len(fe.Errors) > 0 {
+		return nil, &fe
 	}
 
 	txCtx, err := u.uow.Begin(ctx)
@@ -734,12 +746,14 @@ func (u *authUseCase) RegisterWithGoogle(ctx context.Context, req dto.GoogleToke
 		}
 	}
 
+	var fe FieldErrors
+
 	existing, err := u.userRepo.FindByGoogleID(ctx, gUser.ID)
 	if err != nil {
 		return nil, "", err
 	}
 	if existing != nil {
-		return nil, "", ErrEmailAlreadyExists
+		fe.Add("email", "email sudah digunakan")
 	}
 
 	existing, err = u.userRepo.FindByEmail(ctx, gUser.Email)
@@ -747,7 +761,11 @@ func (u *authUseCase) RegisterWithGoogle(ctx context.Context, req dto.GoogleToke
 		return nil, "", err
 	}
 	if existing != nil {
-		return nil, "", ErrEmailAlreadyExists
+		fe.Add("email", "email sudah digunakan")
+	}
+
+	if len(fe.Errors) > 0 {
+		return nil, "", &fe
 	}
 
 	id, err := uuid.NewV7()

@@ -107,31 +107,35 @@ func (u *purchaseOrderUseCaseImpl) Create(ctx context.Context, userID string, re
 		return nil, err
 	}
 
+	var fe FieldErrors
+
 	if len(req.Items) == 0 {
-		return nil, errors.New("items is required")
+		fe.Add("items", "items harus diisi")
+		return nil, &fe
 	}
 
 	supplier, err := u.supplierRepo.FindByID(ctx, req.SupplierID.String())
 	if err != nil || supplier == nil {
-		return nil, errors.New("supplier not found")
-	}
-	if err != nil || supplier == nil {
-		return nil, errors.New("supplier not found")
+		fe.Add("supplier_id", "supplier tidak ditemukan")
+		return nil, &fe
 	}
 
 	store, err := u.storeRepo.FindByID(ctx, req.StoreID.String())
 	if err != nil || store == nil {
-		return nil, errors.New("store not found")
+		fe.Add("store_id", "toko tidak ditemukan")
+		return nil, &fe
 	}
 
 	warehouse, err := u.warehouseRepo.FindByID(ctx, req.WarehouseID.String())
 	if err != nil || warehouse == nil {
-		return nil, errors.New("warehouse not found")
+		fe.Add("warehouse_id", "gudang tidak ditemukan")
+		return nil, &fe
 	}
 
 	creator, err := u.userRepo.FindByID(ctx, userID)
 	if err != nil || creator == nil {
-		return nil, errors.New("creator user not found")
+		fe.Add("created_by", "user tidak ditemukan")
+		return nil, &fe
 	}
 
 	orderDate := req.OrderDate
@@ -228,8 +232,11 @@ func (u *purchaseOrderUseCaseImpl) CreateFromPlanning(ctx context.Context, userI
 		return nil, err
 	}
 
+	var fe FieldErrors
+
 	if len(req.PlanningIDs) == 0 {
-		return nil, errors.New("planning_ids is required")
+		fe.Add("planning_ids", "planning_ids harus diisi")
+		return nil, &fe
 	}
 
 	poNum, err := u.generatePONumber(time.Now())

@@ -96,77 +96,15 @@ func (r *masterDataProposalRepository) FindAll(ctx context.Context) ([]entity.Ma
 	return proposals, nil
 }
 
-func (r *masterDataProposalRepository) FindAllWithPaginationGrouped(ctx context.Context, filter entity.QueryFilter) ([]entity.MasterDataProposal, *entity.Meta, error) {
-	page := filter.Page
-	limit := filter.Limit
-
-	// Get distinct group_ids with pagination
-	var groupIDs []string
-	var total, totalFiltered int64
-
-	// Count total distinct groups
-	r.db.Model(&entity.MasterDataProposal{}).Distinct("group_id").Count(&total)
-
-	// Apply status filter if present
-	query := r.db.Model(&entity.MasterDataProposal{})
-	if filter.Conditions != nil {
-		if status, ok := filter.Conditions["status"].(string); ok && status != "" {
-			query = query.Where("status = ?", status)
-		}
-		if entityType, ok := filter.Conditions["entity_type"].(string); ok && entityType != "" {
-			query = query.Where("entity_type = ?", entityType)
-		}
-	}
-	query.Distinct("group_id").Count(&totalFiltered)
-
-	// Get group IDs with pagination
-	subQuery := r.db.Model(&entity.MasterDataProposal{}).
-		Select("DISTINCT group_id").
-		Order("MAX(created_at) DESC").
-		Offset((page - 1) * limit).
-		Limit(limit)
-
-	if filter.Conditions != nil {
-		if status, ok := filter.Conditions["status"].(string); ok && status != "" {
-			subQuery = subQuery.Where("status = ?", status)
-		}
-		if entityType, ok := filter.Conditions["entity_type"].(string); ok && entityType != "" {
-			subQuery = subQuery.Where("entity_type = ?", entityType)
-		}
-	}
-
-	if err := subQuery.Pluck("group_id", &groupIDs).Error; err != nil {
-		return nil, nil, fmt.Errorf("failed to fetch group IDs: %w", err)
-	}
-
-	// If no groups, return empty
-	if len(groupIDs) == 0 {
-		return []entity.MasterDataProposal{}, &entity.Meta{
-			Page:    page,
-			Limit:   limit,
-			Total:   int(total),
-		}, nil
-	}
-
-	// Get all proposals for these groups, maintaining order
-	var proposals []entity.MasterDataProposal
-	finalQuery := r.db.WithContext(ctx).
-		Preload("ProposedBy").
-		Preload("ReviewedBy").
-		Where("group_id IN ?", groupIDs).
-		Order("created_at DESC")
-
-	if err := finalQuery.Find(&proposals).Error; err != nil {
-		return nil, nil, fmt.Errorf("failed to fetch proposals: %w", err)
-	}
-
-	meta := &entity.Meta{
-		Page:    page,
-		Limit:   limit,
-		Total:   int(total),
-	}
-
-	return proposals, meta, nil
+func (r *masterDataProposalRepository) FindAllWithPagination(ctx context.Context, filter entity.QueryFilter) ([]entity.MasterDataProposal, *entity.Meta, error) {
+	baseQuery := r.db.WithContext(ctx).Model(&entity.MasterDataProposal{}).
+		Preload("ProposedBy", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "name")
+		}).
+		Preload("ReviewedBy", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "name")
+		})
+	return PaginateAndFilter[entity.MasterDataProposal](r.db, baseQuery, filter)
 }
 
 func (r *masterDataProposalRepository) Update(ctx context.Context, p *entity.MasterDataProposal) error {

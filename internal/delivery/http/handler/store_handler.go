@@ -37,8 +37,8 @@ func (h *StoreHandler) Create(c *fiber.Ctx) error {
 
 	storeResp, err := h.storeUseCase.Create(c.UserContext(), req)
 	if err != nil {
-		if errors.Is(err, usecase.ErrStoreCodeExists) {
-			return response.Error(c, fiber.StatusConflict, err.Error())
+		if handleFieldErrors(c, err) {
+			return nil
 		}
 		return response.Error(c, fiber.StatusInternalServerError, "Failed to create store")
 	}
@@ -110,8 +110,8 @@ func (h *StoreHandler) Update(c *fiber.Ctx) error {
 		if errors.Is(err, usecase.ErrStoreNotFound) {
 			return response.Error(c, fiber.StatusNotFound, err.Error())
 		}
-		if errors.Is(err, usecase.ErrStoreCodeExists) {
-			return response.Error(c, fiber.StatusConflict, err.Error())
+		if handleFieldErrors(c, err) {
+			return nil
 		}
 		return response.Error(c, fiber.StatusInternalServerError, "Failed to update store")
 	}
