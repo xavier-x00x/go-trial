@@ -62,6 +62,7 @@ func setupPriceLists(r fiber.Router, f *registry.FinanceRegistry) {
 	r = r.Group("/price-lists")
 	r.Post("", h.Create)
 	r.Get("", h.GetAll)
+	r.Get("/pagination", h.GetAllWithPagination)
 	r.Get("/active", h.GetActive)
 	r.Get("/:id", h.GetByID)
 	r.Put("/:id", h.Update)

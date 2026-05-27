@@ -95,12 +95,13 @@ func NewFinanceRegistry(db *gorm.DB, cfg *config.Config) *FinanceRegistry {
 	)
 
 	coaQueryService := service.NewCOAQueryService(db)
+	priceListQueryService := service.NewPriceListQueryService(db)
 
 	return &FinanceRegistry{
 		Handler:                handler.NewCOAHandler(coaUseCase, coaQueryService, v),
 		CustomerHandler:       handler.NewCustomerHandler(customerUseCase, v),
 		PaymentMethodHandler:   handler.NewPaymentMethodHandler(paymentMethodUseCase, v),
-		PriceListHandler:      handler.NewPriceListHandler(priceListUseCase, v),
+		PriceListHandler:      handler.NewPriceListHandler(priceListUseCase, priceListQueryService, v),
 		TaxHandler:            handler.NewTaxHandler(taxUseCase, v),
 		PurchaseInvoiceHandler: handler.NewPurchaseInvoiceHandler(purchaseInvoiceUseCase),
 		PurchasePaymentHandler: handler.NewPurchasePaymentHandler(purchasePaymentUseCase),
