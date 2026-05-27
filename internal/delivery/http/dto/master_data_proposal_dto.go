@@ -1,6 +1,7 @@
 package dto
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -91,9 +92,9 @@ type MasterDataProposalDetailResponse struct {
 
 // MasterDataProposalItemResponse adalah response per baris item detail.
 type MasterDataProposalItemResponse struct {
-	ID           uuid.UUID  `json:"id"`
-	SeqNo        int        `json:"seq_no"`
-	EntityID     *uuid.UUID `json:"entity_id,omitempty"`
-	PayloadJSON  string     `json:"payload_json"`
-	SnapshotJSON *string    `json:"snapshot_json,omitempty"`
+	ID           uuid.UUID        `json:"id"`
+	SeqNo        int              `json:"seq_no"`
+	EntityID     *uuid.UUID       `json:"entity_id,omitempty"`
+	PayloadJSON  json.RawMessage  `json:"payload_json"`
+	SnapshotJSON json.RawMessage  `json:"snapshot_json,omitempty"`
 }

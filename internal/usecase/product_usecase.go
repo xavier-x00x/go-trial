@@ -8,6 +8,8 @@ import (
 	"go-trial/internal/domain/entity"
 	"go-trial/internal/domain/repository"
 	"go-trial/internal/infrastructure/uow"
+
+	"github.com/google/uuid"
 )
 
 var (
@@ -248,6 +250,22 @@ func (u *productUseCase) Delete(ctx context.Context, id string) error {
 }
 
 func toProductResponse(p *entity.Product, category *dto.CategoryResponse, uom *dto.UOMResponse) dto.ProductResponse {
+	// Auto-map dari entity jika preloaded tapi parameter DTO nil
+	if uom == nil && p.BaseUOM.ID != uuid.Nil {
+		uom = &dto.UOMResponse{
+			ID:   p.BaseUOM.ID.String(),
+			Code: p.BaseUOM.Code,
+			Name: p.BaseUOM.Name,
+		}
+	}
+	if category == nil && p.Category.ID != uuid.Nil {
+		category = &dto.CategoryResponse{
+			ID:   p.Category.ID.String(),
+			Name: p.Category.Name,
+			Slug: p.Category.Slug,
+		}
+	}
+
 	return dto.ProductResponse{
 		ID:         p.ID,
 		SKU:        p.SKU,

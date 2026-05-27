@@ -5,6 +5,8 @@ import (
 	"strconv"
 
 	"go-trial/internal/delivery/http/dto"
+	"go-trial/internal/query/params"
+	"go-trial/internal/query/service"
 	"go-trial/internal/usecase"
 	"go-trial/pkg/response"
 	"go-trial/pkg/validator"
@@ -14,13 +16,15 @@ import (
 
 type ProductHandler struct {
 	productUseCase usecase.ProductUseCase
-	validator    *validator.Validator
+	queryService   *service.ProductQueryService
+	validator      *validator.Validator
 }
 
-func NewProductHandler(productUseCase usecase.ProductUseCase, v *validator.Validator) *ProductHandler {
+func NewProductHandler(productUseCase usecase.ProductUseCase, queryService *service.ProductQueryService, v *validator.Validator) *ProductHandler {
 	return &ProductHandler{
 		productUseCase: productUseCase,
-		validator:    v,
+		queryService:   queryService,
+		validator:      v,
 	}
 }
 
@@ -81,6 +85,26 @@ func (h *ProductHandler) GetAllWithPagination(c *fiber.Ctx) error {
 	}
 
 	data, meta, err := h.productUseCase.GetAllWithPagination(c.UserContext(), metaRequest)
+	if err != nil {
+		return response.Error(c, fiber.StatusInternalServerError, "Failed to get products")
+	}
+
+	return response.SuccessWithMeta(c, fiber.StatusOK, "Products retrieved successfully", data, meta)
+}
+
+func (h *ProductHandler) GetAllWithPaginationQuery(c *fiber.Ctx) error {
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	limit, _ := strconv.Atoi(c.Query("limit", "10"))
+
+	metaRequest := &params.MetaRequest{
+		Page:        page,
+		Limit:       limit,
+		Search:      c.Query("search", ""),
+		OrderColumn: c.Query("order_column", "id"),
+		OrderDir:    c.Query("order_dir", "asc"),
+	}
+
+	data, meta, err := h.queryService.GetListPagination(c.UserContext(), metaRequest)
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, "Failed to get products")
 	}

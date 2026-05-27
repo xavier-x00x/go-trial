@@ -5,6 +5,7 @@ import (
 	"go-trial/internal/delivery/http/handler"
 	"go-trial/internal/infrastructure/repository"
 	"go-trial/internal/infrastructure/uow"
+	"go-trial/internal/query/service"
 	"go-trial/internal/usecase"
 	"go-trial/pkg/validator"
 
@@ -12,10 +13,10 @@ import (
 )
 
 type ProductRegistry struct {
-	Handler         *handler.ProductHandler
-	CategoryHandler *handler.ProductCategoryHandler
-	UOMHandler      *handler.UOMHandler
-	ProductPriceHandler *handler.ProductPriceHandler
+	Handler              *handler.ProductHandler
+	CategoryHandler      *handler.ProductCategoryHandler
+	UOMHandler           *handler.UOMHandler
+	ProductPriceHandler  *handler.ProductPriceHandler
 	UOMConversionHandler *handler.ProductUOMConversionHandler
 }
 
@@ -35,11 +36,14 @@ func NewProductRegistry(db *gorm.DB, cfg *config.Config) *ProductRegistry {
 	productPriceUseCase := usecase.NewProductPriceUsecase(productPriceRepo)
 	productUOMUseCase := usecase.NewProductUOMConversionUsecase(productUOMRepo)
 
+	//Query
+	productQueryService := service.NewProductQueryService(db)
+
 	return &ProductRegistry{
-		Handler:          handler.NewProductHandler(productUseCase, v),
-		CategoryHandler:  handler.NewProductCategoryHandler(categoryUseCase, v),
-		UOMHandler:       handler.NewUOMHandler(uomUseCase, v),
-		ProductPriceHandler: handler.NewProductPriceHandler(productPriceUseCase, v),
+		Handler:              handler.NewProductHandler(productUseCase, productQueryService, v),
+		CategoryHandler:      handler.NewProductCategoryHandler(categoryUseCase, v),
+		UOMHandler:           handler.NewUOMHandler(uomUseCase, v),
+		ProductPriceHandler:  handler.NewProductPriceHandler(productPriceUseCase, v),
 		UOMConversionHandler: handler.NewProductUOMConversionHandler(productUOMUseCase, v),
 	}
 }

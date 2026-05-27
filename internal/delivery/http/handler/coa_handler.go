@@ -5,6 +5,8 @@ import (
 	"strconv"
 
 	"go-trial/internal/delivery/http/dto"
+	"go-trial/internal/query/params"
+	"go-trial/internal/query/service"
 	"go-trial/internal/usecase"
 	"go-trial/pkg/response"
 	"go-trial/pkg/validator"
@@ -14,12 +16,14 @@ import (
 
 type COAHandler struct {
 	coaUseCase usecase.ChartOfAccountUseCase
+	queryService *service.COAQueryService
 	validator *validator.Validator
 }
 
-func NewCOAHandler(coaUseCase usecase.ChartOfAccountUseCase, v *validator.Validator) *COAHandler {
+func NewCOAHandler(coaUseCase usecase.ChartOfAccountUseCase, queryService *service.COAQueryService, v *validator.Validator) *COAHandler {
 	return &COAHandler{
 		coaUseCase: coaUseCase,
+		queryService: queryService,
 		validator: v,
 	}
 }
@@ -81,6 +85,26 @@ func (h *COAHandler) GetAllWithPagination(c *fiber.Ctx) error {
 	}
 
 	data, meta, err := h.coaUseCase.GetAllWithPagination(c.UserContext(), metaRequest)
+	if err != nil {
+		return response.Error(c, fiber.StatusInternalServerError, "Failed to get chart of accounts")
+	}
+
+	return response.SuccessWithMeta(c, fiber.StatusOK, "Chart of accounts retrieved successfully", data, meta)
+}
+
+func (h *COAHandler) GetAllWithPaginationQuery(c *fiber.Ctx) error {
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	limit, _ := strconv.Atoi(c.Query("limit", "10"))
+
+	metaRequest := &params.MetaRequest{
+		Page:        page,
+		Limit:       limit,
+		Search:      c.Query("search", ""),
+		OrderColumn: c.Query("order_column", "id"),
+		OrderDir:    c.Query("order_dir", "asc"),
+	}
+
+	data, meta, err := h.queryService.GetListPagination(c.UserContext(), metaRequest)
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, "Failed to get chart of accounts")
 	}

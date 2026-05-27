@@ -25,6 +25,7 @@ func setupAccounts(r fiber.Router, f *registry.FinanceRegistry) {
 	r.Post("", h.Create)
 	r.Get("", h.GetAll)
 	r.Get("/pagination", h.GetAllWithPagination)
+	r.Get("/query", h.GetAllWithPaginationQuery)
 	r.Post("/import", h.Import)
 	r.Get("/import/template", h.DownloadTemplate)
 	r.Get("/tree", h.GetTree)

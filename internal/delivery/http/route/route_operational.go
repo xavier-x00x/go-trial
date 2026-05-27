@@ -40,6 +40,7 @@ func setupProducts(r fiber.Router, p *registry.ProductRegistry) {
 	r.Post("", check("products:create"), h.Create)
 	r.Get("", check("products:view"), h.GetAll)
 	r.Get("/pagination", check("products:view"), h.GetAllWithPagination)
+	r.Get("/query", check("products:view"), h.GetAllWithPaginationQuery)
 	r.Get("/:id", check("products:view"), h.GetByID)
 	r.Put("/:id", check("products:update"), h.Update)
 	r.Delete("/:id", check("products:delete"), h.Delete)

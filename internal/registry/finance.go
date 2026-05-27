@@ -5,6 +5,7 @@ import (
 	"go-trial/internal/delivery/http/handler"
 	"go-trial/internal/infrastructure/repository"
 	"go-trial/internal/infrastructure/uow"
+	"go-trial/internal/query/service"
 	"go-trial/internal/usecase"
 	"go-trial/pkg/validator"
 
@@ -93,8 +94,10 @@ func NewFinanceRegistry(db *gorm.DB, cfg *config.Config) *FinanceRegistry {
 		db,
 	)
 
+	coaQueryService := service.NewCOAQueryService(db)
+
 	return &FinanceRegistry{
-		Handler:                handler.NewCOAHandler(coaUseCase, v),
+		Handler:                handler.NewCOAHandler(coaUseCase, coaQueryService, v),
 		CustomerHandler:       handler.NewCustomerHandler(customerUseCase, v),
 		PaymentMethodHandler:   handler.NewPaymentMethodHandler(paymentMethodUseCase, v),
 		PriceListHandler:      handler.NewPriceListHandler(priceListUseCase, v),

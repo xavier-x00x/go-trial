@@ -125,14 +125,21 @@ func (u *masterDataProposalUseCaseImpl) Create(ctx context.Context, userID strin
 
 	items := make([]entity.MasterDataProposalItem, len(req.Items))
 	for i, item := range req.Items {
-		payloadJSON, err := json.Marshal(item)
-		if err != nil {
-			return nil, err
+		var snapshotJSON *string
+		if req.ActionType == entity.ProposalActionUpdate || req.ActionType == entity.ProposalActionDelete {
+			if item.EntityID != nil {
+				snapshotJSON, err = u.fetchSnapshot(ctx, req.EntityType, item.EntityID.String())
+				if err != nil {
+					return nil, err
+				}
+			}
 		}
+
 		items[i] = entity.MasterDataProposalItem{
-			SeqNo:       i + 1,
-			EntityID:    item.EntityID,
-			PayloadJSON: string(payloadJSON),
+			SeqNo:        i + 1,
+			EntityID:     item.EntityID,
+			PayloadJSON:  item.PayloadJSON,
+			SnapshotJSON: snapshotJSON,
 		}
 		if err := items[i].GenerateID(); err != nil {
 			return nil, err
@@ -312,15 +319,22 @@ func (u *masterDataProposalUseCaseImpl) Update(ctx context.Context, userID strin
 
 	items := make([]entity.MasterDataProposalItem, len(req.Items))
 	for i, item := range req.Items {
-		payloadJSON, err := json.Marshal(item)
-		if err != nil {
-			return nil, err
+		var snapshotJSON *string
+		if proposal.ActionType == entity.ProposalActionUpdate || proposal.ActionType == entity.ProposalActionDelete {
+			if item.EntityID != nil {
+				snapshotJSON, err = u.fetchSnapshot(ctx, proposal.EntityType, item.EntityID.String())
+				if err != nil {
+					return nil, err
+				}
+			}
 		}
+
 		items[i] = entity.MasterDataProposalItem{
-			ProposalID:  proposal.ID,
-			SeqNo:       i + 1,
-			EntityID:    item.EntityID,
-			PayloadJSON: string(payloadJSON),
+			ProposalID:   proposal.ID,
+			SeqNo:        i + 1,
+			EntityID:     item.EntityID,
+			PayloadJSON:  item.PayloadJSON,
+			SnapshotJSON: snapshotJSON,
 		}
 		if err := items[i].GenerateID(); err != nil {
 			return nil, err
@@ -625,6 +639,63 @@ func (u *masterDataProposalUseCaseImpl) executeTax(ctx context.Context, p *entit
 	return nil
 }
 
+func (u *masterDataProposalUseCaseImpl) fetchSnapshot(ctx context.Context, entityType string, id string) (*string, error) {
+	var b []byte
+	var err error
+	switch entityType {
+	case entity.ProposalEntityProduct:
+		var d *entity.Product
+		d, err = u.productRepo.FindByID(ctx, id)
+		if err == nil && d != nil {
+			b, err = json.Marshal(d)
+		}
+	case entity.ProposalEntityProductPrice:
+		var d *entity.ProductPrice
+		d, err = u.productPriceRepo.FindByID(ctx, id)
+		if err == nil && d != nil {
+			b, err = json.Marshal(d)
+		}
+	case entity.ProposalEntityProductUOM:
+		var d *entity.ProductUOMConversion
+		d, err = u.productUOMRepo.FindByID(ctx, id)
+		if err == nil && d != nil {
+			b, err = json.Marshal(d)
+		}
+	case entity.ProposalEntitySupplier:
+		var d *entity.Supplier
+		d, err = u.supplierRepo.FindByID(ctx, id)
+		if err == nil && d != nil {
+			b, err = json.Marshal(d)
+		}
+	case entity.ProposalEntityProductSupplier:
+		var d *entity.ProductSupplier
+		d, err = u.productSupplierRepo.FindByID(ctx, id)
+		if err == nil && d != nil {
+			b, err = json.Marshal(d)
+		}
+	case entity.ProposalEntityChartOfAccount:
+		var d *entity.ChartOfAccount
+		d, err = u.coaRepo.FindByID(ctx, id)
+		if err == nil && d != nil {
+			b, err = json.Marshal(d)
+		}
+	case entity.ProposalEntityTax:
+		var d *entity.Tax
+		d, err = u.taxRepo.FindByID(ctx, id)
+		if err == nil && d != nil {
+			b, err = json.Marshal(d)
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+	if len(b) > 0 {
+		s := string(b)
+		return &s, nil
+	}
+	return nil, nil
+}
+
 func executeCreateProduct(ctx context.Context, repo repository.ProductRepository, req *dto.CreateProductRequest, uow uow.UnitOfWork) error {
 	product := &entity.Product{
 		SKU:         req.SKU,
@@ -925,13 +996,16 @@ func toMasterDataProposalListResponse(p *entity.MasterDataProposal) *dto.MasterD
 func toMasterDataProposalDetailResponse(p *entity.MasterDataProposal) *dto.MasterDataProposalDetailResponse {
 	items := make([]dto.MasterDataProposalItemResponse, len(p.Items))
 	for i, item := range p.Items {
-		items[i] = dto.MasterDataProposalItemResponse{
-			ID:           item.ID,
-			SeqNo:        item.SeqNo,
-			EntityID:     item.EntityID,
-			PayloadJSON:  item.PayloadJSON,
-			SnapshotJSON: item.SnapshotJSON,
+		resp := dto.MasterDataProposalItemResponse{
+			ID:          item.ID,
+			SeqNo:       item.SeqNo,
+			EntityID:    item.EntityID,
+			PayloadJSON: json.RawMessage(item.PayloadJSON),
 		}
+		if item.SnapshotJSON != nil {
+			resp.SnapshotJSON = json.RawMessage(*item.SnapshotJSON)
+		}
+		items[i] = resp
 	}
 
 	return &dto.MasterDataProposalDetailResponse{
