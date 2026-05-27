@@ -1,7 +1,11 @@
 package handler
 
 import (
+	"strconv"
+
 	"go-trial/internal/delivery/http/dto"
+	"go-trial/internal/query/params"
+	"go-trial/internal/query/service"
 	"go-trial/internal/usecase"
 	"go-trial/pkg/response"
 	"go-trial/pkg/validator"
@@ -10,12 +14,13 @@ import (
 )
 
 type PriceListHandler struct {
-	uc *usecase.PriceListUsecase
-	v  *validator.Validator
+	uc           *usecase.PriceListUsecase
+	queryService *service.PriceListQueryService
+	v            *validator.Validator
 }
 
-func NewPriceListHandler(uc *usecase.PriceListUsecase, v *validator.Validator) *PriceListHandler {
-	return &PriceListHandler{uc: uc, v: v}
+func NewPriceListHandler(uc *usecase.PriceListUsecase, queryService *service.PriceListQueryService, v *validator.Validator) *PriceListHandler {
+	return &PriceListHandler{uc: uc, queryService: queryService, v: v}
 }
 
 func (h *PriceListHandler) Create(c *fiber.Ctx) error {
@@ -74,4 +79,24 @@ func (h *PriceListHandler) Delete(c *fiber.Ctx) error {
 		return response.Error(c, fiber.StatusInternalServerError, err.Error())
 	}
 	return response.Success(c, fiber.StatusOK, "Price list deleted successfully", nil)
+}
+
+func (h *PriceListHandler) GetAllWithPagination(c *fiber.Ctx) error {
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	limit, _ := strconv.Atoi(c.Query("limit", "10"))
+
+	metaRequest := &params.MetaRequest{
+		Page:        page,
+		Limit:       limit,
+		Search:      c.Query("search", ""),
+		OrderColumn: c.Query("order_column", "id"),
+		OrderDir:    c.Query("order_dir", "asc"),
+	}
+
+	data, meta, err := h.queryService.GetListPagination(c.UserContext(), metaRequest)
+	if err != nil {
+		return response.Error(c, fiber.StatusInternalServerError, err.Error())
+	}
+
+	return response.SuccessWithMeta(c, fiber.StatusOK, "Price lists retrieved successfully", data, meta)
 }
