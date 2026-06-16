@@ -7,8 +7,8 @@ type PriceListRow struct {
 	Code         string     `json:"code"`
 	Name         string     `json:"name"`
 	CurrencyCode string     `json:"currency_code"`
-	StartDate    *time.Time `json:"start_date"`
-	EndDate      *time.Time `json:"end_date"`
+	StoreID      *string    `json:"store_id,omitempty"`
+	StoreName    *string    `json:"store_name,omitempty"`
 	IsActive     bool       `json:"is_active"`
 	UpdatedAt    time.Time  `json:"updated_at"`
 }

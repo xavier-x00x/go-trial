@@ -38,7 +38,7 @@ func (r *numberSequenceRepository) GetNextNumber(ctx context.Context, prefix, pe
 		ns = entity.NumberSequence{
 			Prefix:     prefix,
 			Period:     period,
-			LastNumber: 0,
+			LastNumber: 1,
 		}
 		if err := r.db.WithContext(ctx).Create(&ns).Error; err != nil {
 			return 0, err

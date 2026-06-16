@@ -70,5 +70,5 @@ func (r *priceListRepository) Update(ctx context.Context, pl *entity.PriceList) 
 }
 
 func (r *priceListRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Where("id = ?").Delete(&entity.PriceList{}).Error
+	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&entity.PriceList{}).Error
 }

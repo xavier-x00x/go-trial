@@ -163,7 +163,7 @@ func (u *rolePermissionUseCase) UpdateRole(ctx context.Context, id string, req d
 	defer u.uow.Rollback(txCtx)
 
 	// log print for debugging
-	log.Println("Replacing permissions for role %s: %v", id, req.Permissions)
+	log.Printf("Replacing permissions for role %s: %v", id, req.Permissions)
 
 	var fe FieldErrors
 	if req.Name != nil && *req.Name != role.Name {

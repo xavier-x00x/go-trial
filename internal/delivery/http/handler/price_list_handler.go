@@ -7,6 +7,7 @@ import (
 	"go-trial/internal/query/params"
 	"go-trial/internal/query/service"
 	"go-trial/internal/usecase"
+	"go-trial/pkg/jwt"
 	"go-trial/pkg/response"
 	"go-trial/pkg/validator"
 
@@ -24,11 +25,16 @@ func NewPriceListHandler(uc *usecase.PriceListUsecase, queryService *service.Pri
 }
 
 func (h *PriceListHandler) Create(c *fiber.Ctx) error {
+	claims, ok := c.Locals("claims").(*jwt.Claims)
+	if !ok || claims == nil {
+		return response.Error(c, fiber.StatusUnauthorized, "Unauthorized")
+	}
+
 	var req dto.CreatePriceListRequest
 	if err := c.BodyParser(&req); err != nil {
 		return response.Error(c, fiber.StatusBadRequest, "Invalid request body")
 	}
-	result, err := h.uc.Create(c.UserContext(), req)
+	result, err := h.uc.Create(c.UserContext(), claims.StoreID, req)
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, err.Error())
 	}
@@ -37,7 +43,7 @@ func (h *PriceListHandler) Create(c *fiber.Ctx) error {
 
 func (h *PriceListHandler) GetByID(c *fiber.Ctx) error {
 	id := c.Params("id")
-	result, err := h.uc.GetByID(c.UserContext(), id)
+	result, err := h.queryService.GetByID(c.UserContext(), id)
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, err.Error())
 	}
@@ -45,7 +51,7 @@ func (h *PriceListHandler) GetByID(c *fiber.Ctx) error {
 }
 
 func (h *PriceListHandler) GetAll(c *fiber.Ctx) error {
-	result, err := h.uc.GetAll(c.UserContext())
+	result, err := h.queryService.GetAll(c.UserContext())
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, err.Error())
 	}
@@ -53,7 +59,7 @@ func (h *PriceListHandler) GetAll(c *fiber.Ctx) error {
 }
 
 func (h *PriceListHandler) GetActive(c *fiber.Ctx) error {
-	result, err := h.uc.GetActive(c.UserContext())
+	result, err := h.queryService.GetActive(c.UserContext())
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, err.Error())
 	}

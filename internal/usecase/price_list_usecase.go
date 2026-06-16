@@ -6,6 +6,8 @@ import (
 	"go-trial/internal/delivery/http/dto"
 	"go-trial/internal/domain/entity"
 	"go-trial/internal/domain/repository"
+
+	"github.com/google/uuid"
 )
 
 type PriceListUsecase struct {
@@ -13,16 +15,25 @@ type PriceListUsecase struct {
 }
 
 func NewPriceListUsecase(repo repository.PriceListRepository) *PriceListUsecase {
-	return &PriceListUsecase{repo: repo}
+	return &PriceListUsecase{
+		repo: repo,
+	}
 }
 
-func (u *PriceListUsecase) Create(ctx context.Context, req dto.CreatePriceListRequest) (*entity.PriceList, error) {
+func (u *PriceListUsecase) Create(ctx context.Context, storeIDStr *string, req dto.CreatePriceListRequest) (*entity.PriceList, error) {
+	var storeID *uuid.UUID
+	if storeIDStr != nil && *storeIDStr != "" {
+		parsed, err := uuid.Parse(*storeIDStr)
+		if err == nil {
+			storeID = &parsed
+		}
+	}
+
 	pl := &entity.PriceList{
 		Code:         req.Code,
 		Name:         req.Name,
 		CurrencyCode: req.CurrencyCode,
-		StartDate:    req.StartDate,
-		EndDate:      req.EndDate,
+		StoreID:      storeID,
 		IsActive:     true,
 	}
 	if err := pl.GenerateID(); err != nil {
@@ -32,18 +43,6 @@ func (u *PriceListUsecase) Create(ctx context.Context, req dto.CreatePriceListRe
 		return nil, err
 	}
 	return pl, nil
-}
-
-func (u *PriceListUsecase) GetByID(ctx context.Context, id string) (*entity.PriceList, error) {
-	return u.repo.FindByID(ctx, id)
-}
-
-func (u *PriceListUsecase) GetAll(ctx context.Context) ([]entity.PriceList, error) {
-	return u.repo.FindAll(ctx)
-}
-
-func (u *PriceListUsecase) GetActive(ctx context.Context) ([]entity.PriceList, error) {
-	return u.repo.FindActive(ctx)
 }
 
 func (u *PriceListUsecase) Update(ctx context.Context, req dto.UpdatePriceListRequest, id string) (*entity.PriceList, error) {
@@ -59,12 +58,6 @@ func (u *PriceListUsecase) Update(ctx context.Context, req dto.UpdatePriceListRe
 	}
 	if req.CurrencyCode != nil {
 		pl.CurrencyCode = *req.CurrencyCode
-	}
-	if req.StartDate != nil {
-		pl.StartDate = req.StartDate
-	}
-	if req.EndDate != nil {
-		pl.EndDate = req.EndDate
 	}
 	if req.IsActive != nil {
 		pl.IsActive = *req.IsActive

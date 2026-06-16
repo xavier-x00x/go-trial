@@ -48,6 +48,8 @@ func NewMySQL(cfg *config.DatabaseConfig) *gorm.DB {
 
 func autoMigrateWithCleanup(db *gorm.DB) error {
 	cleanupColumns := map[string][]string{
+		"price_lists": {"start_date", "end_date"},
+		"product_prices": {"discount_pct"},
 		"users": {"phone"},
 		"purchase_orders": {
 			"subtotal", "discount_amount", "tax_amount", "freight_amount",
@@ -78,6 +80,7 @@ func autoMigrateWithCleanup(db *gorm.DB) error {
 		&entity.UOM{},
 		&entity.ProductCategory{},
 		&entity.Product{},
+		&entity.SupplierCategory{},
 		&entity.Supplier{},
 		&entity.Customer{},
 		&entity.ChartOfAccount{},

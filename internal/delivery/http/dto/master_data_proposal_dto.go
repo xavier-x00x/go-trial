@@ -81,6 +81,7 @@ type MasterDataProposalDetailResponse struct {
 	TotalItems      int                              `json:"total_items"`
 	Status          string                           `json:"status"`
 	ProposedByID    uuid.UUID                        `json:"proposed_by_id"`
+	ProposedByName  string                           `json:"proposed_by_name,omitempty"`
 	ReviewedByID    *uuid.UUID                       `json:"reviewed_by_id,omitempty"`
 	ReviewedAt      *time.Time                       `json:"reviewed_at,omitempty"`
 	Reason          string                           `json:"reason,omitempty"`

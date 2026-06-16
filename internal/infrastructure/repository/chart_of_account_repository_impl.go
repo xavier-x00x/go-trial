@@ -10,6 +10,7 @@ import (
 	"go-trial/internal/infrastructure/uow"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type chartOfAccountRepository struct {
@@ -26,7 +27,7 @@ func (r *chartOfAccountRepository) Create(ctx context.Context, coa *entity.Chart
 
 func (r *chartOfAccountRepository) FindByID(ctx context.Context, id string) (*entity.ChartOfAccount, error) {
 	var coa entity.ChartOfAccount
-	err := r.db.WithContext(ctx).Where("id = ?", id).First(&coa).Error
+	err := r.db.WithContext(ctx).Preload(clause.Associations).Where("id = ?", id).First(&coa).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil

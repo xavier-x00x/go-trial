@@ -418,5 +418,21 @@
   {
     "path": "users:delete",
     "name": "Menghapus Pengguna"
+  },
+  {
+    "path": "supplier-categories:view",
+    "name": "Melihat Kategori Pemasok"
+  },
+  {
+    "path": "supplier-categories:create",
+    "name": "Menambah Kategori Pemasok"
+  },
+  {
+    "path": "supplier-categories:update",
+    "name": "Mengubah Kategori Pemasok"
+  },
+  {
+    "path": "supplier-categories:delete",
+    "name": "Menghapus Kategori Pemasok"
   }
 ]

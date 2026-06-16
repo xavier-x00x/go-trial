@@ -9,6 +9,7 @@ import (
 	"go-trial/internal/infrastructure/uow"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type taxRepository struct {
@@ -25,7 +26,7 @@ func (r *taxRepository) Create(ctx context.Context, t *entity.Tax) error {
 
 func (r *taxRepository) FindByID(ctx context.Context, id string) (*entity.Tax, error) {
 	var tax entity.Tax
-	err := r.db.WithContext(ctx).Preload("TaxAccount").Where("id = ?", id).First(&tax).Error
+	err := r.db.WithContext(ctx).Preload(clause.Associations).Where("id = ?", id).First(&tax).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil

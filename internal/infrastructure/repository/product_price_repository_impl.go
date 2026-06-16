@@ -9,6 +9,7 @@ import (
 	"go-trial/internal/infrastructure/uow"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type productPriceRepository struct {
@@ -25,7 +26,7 @@ func (r *productPriceRepository) Create(ctx context.Context, pp *entity.ProductP
 
 func (r *productPriceRepository) FindByID(ctx context.Context, id string) (*entity.ProductPrice, error) {
 	var pp entity.ProductPrice
-	err := r.db.WithContext(ctx).Preload("PriceList").Preload("Product").Preload("UOM").Where("id = ?", id).First(&pp).Error
+	err := r.db.WithContext(ctx).Preload(clause.Associations).Where("id = ?", id).First(&pp).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
@@ -79,5 +80,5 @@ func (r *productPriceRepository) Update(ctx context.Context, pp *entity.ProductP
 }
 
 func (r *productPriceRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Where("id = ?").Delete(&entity.ProductPrice{}).Error
+	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&entity.ProductPrice{}).Error
 }

@@ -19,11 +19,10 @@ func NewProductPriceUsecase(repo repository.ProductPriceRepository) *ProductPric
 func (u *ProductPriceUsecase) Create(ctx context.Context, req dto.CreateProductPriceRequest) (*entity.ProductPrice, error) {
 	pp := &entity.ProductPrice{
 		PriceListID: req.PriceListID,
-		ProductID: req.ProductID,
-		UOMID:     req.UOMID,
-		MarkupPct: req.MarkupPct,
-		SellPrice: req.SellPrice,
-		DiscountPct: req.DiscountPct,
+		ProductID:   req.ProductID,
+		UOMID:       req.UOMID,
+		MarkupPct:   req.MarkupPct,
+		SellPrice:   req.SellPrice,
 	}
 	if err := pp.GenerateID(); err != nil {
 		return nil, err
@@ -32,22 +31,6 @@ func (u *ProductPriceUsecase) Create(ctx context.Context, req dto.CreateProductP
 		return nil, err
 	}
 	return pp, nil
-}
-
-func (u *ProductPriceUsecase) GetByID(ctx context.Context, id string) (*entity.ProductPrice, error) {
-	return u.repo.FindByID(ctx, id)
-}
-
-func (u *ProductPriceUsecase) GetByProductID(ctx context.Context, productID string) ([]entity.ProductPrice, error) {
-	return u.repo.FindByProductID(ctx, productID)
-}
-
-func (u *ProductPriceUsecase) GetByPriceListID(ctx context.Context, priceListID string) ([]entity.ProductPrice, error) {
-	return u.repo.FindByPriceListID(ctx, priceListID)
-}
-
-func (u *ProductPriceUsecase) GetAll(ctx context.Context) ([]entity.ProductPrice, error) {
-	return u.repo.FindAll(ctx)
 }
 
 func (u *ProductPriceUsecase) Update(ctx context.Context, req dto.UpdateProductPriceRequest, id string) (*entity.ProductPrice, error) {
@@ -69,9 +52,6 @@ func (u *ProductPriceUsecase) Update(ctx context.Context, req dto.UpdateProductP
 	}
 	if req.SellPrice != nil {
 		pp.SellPrice = *req.SellPrice
-	}
-	if req.DiscountPct != nil {
-		pp.DiscountPct = *req.DiscountPct
 	}
 	if err := u.repo.Update(ctx, pp); err != nil {
 		return nil, err

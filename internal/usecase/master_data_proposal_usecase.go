@@ -24,12 +24,6 @@ var (
 
 type MasterDataProposalUseCase interface {
 	Create(ctx context.Context, userID string, req dto.CreateMasterDataProposalRequest) (*dto.MasterDataProposalDetailResponse, error)
-	GetByID(ctx context.Context, id string) (*dto.MasterDataProposalDetailResponse, error)
-	GetAll(ctx context.Context) ([]dto.MasterDataProposalListResponse, error)
-	GetPending(ctx context.Context) ([]dto.MasterDataProposalListResponse, error)
-	GetAllWithPagination(ctx context.Context, meta *dto.MetaRequest) ([]dto.MasterDataProposalListResponse, *entity.Meta, error)
-	GetByEntityType(ctx context.Context, entityType, status string) ([]dto.MasterDataProposalListResponse, error)
-	GetByGroup(ctx context.Context, groupID string) ([]dto.MasterDataProposalDetailResponse, error)
 	Review(ctx context.Context, userID string, id string, req dto.ReviewMasterDataProposalRequest) (*dto.MasterDataProposalDetailResponse, error)
 	Update(ctx context.Context, userID string, id string, req dto.UpdateMasterDataProposalRequest) (*dto.MasterDataProposalDetailResponse, error)
 	Execute(ctx context.Context, id string) error
@@ -178,76 +172,7 @@ func (u *masterDataProposalUseCaseImpl) Create(ctx context.Context, userID strin
 	return toMasterDataProposalDetailResponse(proposal), nil
 }
 
-func (u *masterDataProposalUseCaseImpl) GetByID(ctx context.Context, id string) (*dto.MasterDataProposalDetailResponse, error) {
-	proposal, err := u.repo.FindByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	if proposal == nil {
-		return nil, ErrProposalNotFound
-	}
 
-	resp := toMasterDataProposalDetailResponse(proposal)
-	return resp, nil
-}
-
-func (u *masterDataProposalUseCaseImpl) GetPending(ctx context.Context) ([]dto.MasterDataProposalListResponse, error) {
-	proposals, err := u.repo.FindPending(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var resp []dto.MasterDataProposalListResponse
-	for _, p := range proposals {
-		resp = append(resp, *toMasterDataProposalListResponse(&p))
-	}
-	return resp, nil
-}
-
-func (u *masterDataProposalUseCaseImpl) GetAll(ctx context.Context) ([]dto.MasterDataProposalListResponse, error) {
-	proposals, err := u.repo.FindAll(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var resp []dto.MasterDataProposalListResponse
-	for _, p := range proposals {
-		resp = append(resp, *toMasterDataProposalListResponse(&p))
-	}
-	return resp, nil
-}
-
-func (u *masterDataProposalUseCaseImpl) GetAllWithPagination(ctx context.Context, meta *dto.MetaRequest) ([]dto.MasterDataProposalListResponse, *entity.Meta, error) {
-	allowedOrder := []string{"id", "reference_number", "entity_type", "status", "created_at"}
-	searchColumns := []string{"id", "reference_number"}
-
-	filter := BuildQueryFilter(meta, allowedOrder, searchColumns)
-	filter.Conditions["deleted_at"] = nil
-
-	data, resMeta, err := u.repo.FindAllWithPagination(ctx, filter)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	resp := []dto.MasterDataProposalListResponse{}
-	for _, p := range data {
-		resp = append(resp, *toMasterDataProposalListResponse(&p))
-	}
-	return resp, resMeta, nil
-}
-
-func (u *masterDataProposalUseCaseImpl) GetByEntityType(ctx context.Context, entityType, status string) ([]dto.MasterDataProposalListResponse, error) {
-	proposals, err := u.repo.FindByEntityType(ctx, entityType, status)
-	if err != nil {
-		return nil, err
-	}
-
-	var resp []dto.MasterDataProposalListResponse
-	for _, p := range proposals {
-		resp = append(resp, *toMasterDataProposalListResponse(&p))
-	}
-	return resp, nil
-}
 
 func (u *masterDataProposalUseCaseImpl) Review(ctx context.Context, userID string, id string, req dto.ReviewMasterDataProposalRequest) (*dto.MasterDataProposalDetailResponse, error) {
 	proposal, err := u.repo.FindByID(ctx, id)
@@ -289,6 +214,13 @@ func (u *masterDataProposalUseCaseImpl) Review(ctx context.Context, userID strin
 
 	if err := u.uow.Commit(txCtx); err != nil {
 		return nil, err
+	}
+
+	if req.Action == "APPROVE" {
+		if execErr := u.Execute(ctx, id); execErr != nil {
+			return nil, fmt.Errorf("proposal approved but execution failed: %w", execErr)
+		}
+		proposal.Status = "EXECUTED"
 	}
 
 	return toMasterDataProposalDetailResponse(proposal), nil
@@ -381,24 +313,32 @@ func (u *masterDataProposalUseCaseImpl) Execute(ctx context.Context, id string) 
 		return ErrProposalNotPending
 	}
 
+	var execErr error
 	switch proposal.EntityType {
 	case entity.ProposalEntityProduct:
-		return u.executeProduct(ctx, proposal)
+		execErr = u.executeProduct(ctx, proposal)
 	case entity.ProposalEntityProductPrice:
-		return u.executeProductPrice(ctx, proposal)
+		execErr = u.executeProductPrice(ctx, proposal)
 	case entity.ProposalEntityProductUOM:
-		return u.executeProductUOMConversion(ctx, proposal)
+		execErr = u.executeProductUOMConversion(ctx, proposal)
 	case entity.ProposalEntitySupplier:
-		return u.executeSupplier(ctx, proposal)
+		execErr = u.executeSupplier(ctx, proposal)
 	case entity.ProposalEntityProductSupplier:
-		return u.executeProductSupplier(ctx, proposal)
+		execErr = u.executeProductSupplier(ctx, proposal)
 	case entity.ProposalEntityChartOfAccount:
-		return u.executeChartOfAccount(ctx, proposal)
+		execErr = u.executeChartOfAccount(ctx, proposal)
 	case entity.ProposalEntityTax:
-		return u.executeTax(ctx, proposal)
+		execErr = u.executeTax(ctx, proposal)
 	default:
 		return ErrInvalidAction
 	}
+
+	if execErr != nil {
+		return execErr
+	}
+
+	proposal.Status = "EXECUTED"
+	return u.repo.Update(ctx, proposal)
 }
 
 func (u *masterDataProposalUseCaseImpl) executeProduct(ctx context.Context, p *entity.MasterDataProposal) error {
@@ -647,43 +587,89 @@ func (u *masterDataProposalUseCaseImpl) fetchSnapshot(ctx context.Context, entit
 		var d *entity.Product
 		d, err = u.productRepo.FindByID(ctx, id)
 		if err == nil && d != nil {
-			b, err = json.Marshal(d)
+			m := toMap(d)
+			if d.Category.Name != "" {
+				m["category_id_text"] = d.Category.Name
+			}
+			if d.BaseUOM.Name != "" {
+				m["base_uom_id_text"] = d.BaseUOM.Name
+			}
+			b, err = json.Marshal(m)
 		}
 	case entity.ProposalEntityProductPrice:
 		var d *entity.ProductPrice
 		d, err = u.productPriceRepo.FindByID(ctx, id)
 		if err == nil && d != nil {
-			b, err = json.Marshal(d)
+			m := toMap(d)
+			if d.PriceList.Name != "" {
+				m["price_list_id_text"] = d.PriceList.Name
+			}
+			if d.Product.Name != "" {
+				m["product_id_text"] = d.Product.SKU + " - " + d.Product.Name
+			}
+			if d.UOM.Name != "" {
+				m["uom_id_text"] = d.UOM.Name
+			}
+			b, err = json.Marshal(m)
 		}
 	case entity.ProposalEntityProductUOM:
 		var d *entity.ProductUOMConversion
 		d, err = u.productUOMRepo.FindByID(ctx, id)
 		if err == nil && d != nil {
-			b, err = json.Marshal(d)
+			m := toMap(d)
+			if d.Product.Name != "" {
+				m["product_id_text"] = d.Product.SKU + " - " + d.Product.Name
+			}
+			if d.UOM.Name != "" {
+				m["uom_id_text"] = d.UOM.Name
+			}
+			b, err = json.Marshal(m)
 		}
 	case entity.ProposalEntitySupplier:
 		var d *entity.Supplier
 		d, err = u.supplierRepo.FindByID(ctx, id)
 		if err == nil && d != nil {
-			b, err = json.Marshal(d)
+			m := toMap(d)
+			if d.SupplierCategory != nil && d.SupplierCategory.Name != "" {
+				m["supplier_category_id_text"] = d.SupplierCategory.Name
+			}
+			if d.APAccount != nil && d.APAccount.Name != "" {
+				m["ap_account_id_text"] = d.APAccount.AccountCode + " - " + d.APAccount.Name
+			}
+			b, err = json.Marshal(m)
 		}
 	case entity.ProposalEntityProductSupplier:
 		var d *entity.ProductSupplier
 		d, err = u.productSupplierRepo.FindByID(ctx, id)
 		if err == nil && d != nil {
-			b, err = json.Marshal(d)
+			m := toMap(d)
+			if d.Product.Name != "" {
+				m["product_id_text"] = d.Product.SKU + " - " + d.Product.Name
+			}
+			if d.Supplier.Name != "" {
+				m["supplier_id_text"] = d.Supplier.Name
+			}
+			b, err = json.Marshal(m)
 		}
 	case entity.ProposalEntityChartOfAccount:
 		var d *entity.ChartOfAccount
 		d, err = u.coaRepo.FindByID(ctx, id)
 		if err == nil && d != nil {
-			b, err = json.Marshal(d)
+			m := toMap(d)
+			if d.Parent != nil && d.Parent.Name != "" {
+				m["parent_id_text"] = d.Parent.AccountCode + " - " + d.Parent.Name
+			}
+			b, err = json.Marshal(m)
 		}
 	case entity.ProposalEntityTax:
 		var d *entity.Tax
 		d, err = u.taxRepo.FindByID(ctx, id)
 		if err == nil && d != nil {
-			b, err = json.Marshal(d)
+			m := toMap(d)
+			if d.TaxAccount != nil && d.TaxAccount.Name != "" {
+				m["tax_account_id_text"] = d.TaxAccount.AccountCode + " - " + d.TaxAccount.Name
+			}
+			b, err = json.Marshal(m)
 		}
 	}
 	if err != nil {
@@ -694,6 +680,13 @@ func (u *masterDataProposalUseCaseImpl) fetchSnapshot(ctx context.Context, entit
 		return &s, nil
 	}
 	return nil, nil
+}
+
+func toMap(v interface{}) map[string]interface{} {
+	b, _ := json.Marshal(v)
+	var m map[string]interface{}
+	json.Unmarshal(b, &m)
+	return m
 }
 
 func executeCreateProduct(ctx context.Context, repo repository.ProductRepository, req *dto.CreateProductRequest, uow uow.UnitOfWork) error {
@@ -855,8 +848,62 @@ func executeUpdateSupplier(ctx context.Context, repo repository.SupplierReposito
 	if err != nil || supplier == nil {
 		return err
 	}
+	if req.Code != nil {
+		supplier.Code = *req.Code
+	}
 	if req.Name != nil {
 		supplier.Name = *req.Name
+	}
+	if req.ContactPerson != nil {
+		supplier.ContactPerson = req.ContactPerson
+	}
+	if req.ContactPhone != nil {
+		supplier.ContactPhone = req.ContactPhone
+	}
+	if req.PhoneNumber != nil {
+		supplier.PhoneNumber = req.PhoneNumber
+	}
+	if req.Email != nil {
+		supplier.Email = req.Email
+	}
+	if req.PreferredNotificationMethod != nil {
+		supplier.PreferredNotificationMethod = *req.PreferredNotificationMethod
+	}
+	if req.Address != nil {
+		supplier.Address = req.Address
+	}
+	if req.TaxRegNumber != nil {
+		supplier.TaxRegNumber = req.TaxRegNumber
+	}
+	if req.SupplierCategoryID != nil {
+		supplier.SupplierCategoryID = req.SupplierCategoryID
+	}
+	if req.IsPKP != nil {
+		supplier.IsPKP = *req.IsPKP
+	}
+	if req.PaymentTermDays != nil {
+		supplier.PaymentTermDays = *req.PaymentTermDays
+	}
+	if req.PaymentMode != nil {
+		supplier.PaymentMode = *req.PaymentMode
+	}
+	if req.MinOrderAmount != nil {
+		supplier.MinOrderAmount = req.GetMinOrderAmount()
+	}
+	if req.BankName != nil {
+		supplier.BankName = req.BankName
+	}
+	if req.BankAccount != nil {
+		supplier.BankAccount = req.BankAccount
+	}
+	if req.BankAccountName != nil {
+		supplier.BankAccountName = req.BankAccountName
+	}
+	if req.IsActive != nil {
+		supplier.IsActive = *req.IsActive
+	}
+	if req.APAccountID != nil {
+		supplier.APAccountID = req.APAccountID
 	}
 	txCtx, _ := uow.Begin(ctx)
 	defer uow.Rollback(txCtx)
@@ -1008,7 +1055,7 @@ func toMasterDataProposalDetailResponse(p *entity.MasterDataProposal) *dto.Maste
 		items[i] = resp
 	}
 
-	return &dto.MasterDataProposalDetailResponse{
+	resp := &dto.MasterDataProposalDetailResponse{
 		ID:              p.ID,
 		ReferenceNumber: p.ReferenceNumber,
 		EntityType:      p.EntityType,
@@ -1024,19 +1071,13 @@ func toMasterDataProposalDetailResponse(p *entity.MasterDataProposal) *dto.Maste
 		UpdatedAt:       p.UpdatedAt,
 		Items:           items,
 	}
+	if p.ProposedBy.Name != "" {
+		resp.ProposedByName = p.ProposedBy.Name
+	}
+	return resp
 }
 
-func (u *masterDataProposalUseCaseImpl) GetByGroup(ctx context.Context, groupID string) ([]dto.MasterDataProposalDetailResponse, error) {
-	proposals, err := u.repo.FindByGroupID(ctx, groupID)
-	if err != nil {
-		return nil, err
-	}
-	var resp []dto.MasterDataProposalDetailResponse
-	for _, p := range proposals {
-		resp = append(resp, *toMasterDataProposalDetailResponse(&p))
-	}
-	return resp, nil
-}
+
 
 func (u *masterDataProposalUseCaseImpl) BulkLinkProductSupplier(ctx context.Context, userID string, req dto.BulkCreateProductSupplierProposalRequest) (*dto.BulkProposalResponse, error) {
 	var refNumbers []string

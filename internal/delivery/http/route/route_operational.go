@@ -97,6 +97,19 @@ func setupSupplierRoutes(r fiber.Router, reg *registry.Registry) {
 	r.Get("/suppliers/:id", h.GetByID)
 	r.Put("/suppliers/:id", h.Update)
 	r.Delete("/suppliers/:id", h.Delete)
+
+	setupSupplierCategoryRoutes(r, reg)
+}
+
+func setupSupplierCategoryRoutes(r fiber.Router, reg *registry.Registry) {
+	h := reg.Supplier.CategoryHandler
+	r = r.Group("/supplier-categories")
+	r.Post("", check("supplier-categories:create"), h.Create)
+	r.Get("", check("supplier-categories:view"), h.GetAll)
+	r.Get("/pagination", check("supplier-categories:view"), h.GetAllWithPagination)
+	r.Get("/:id", check("supplier-categories:view"), h.GetByID)
+	r.Put("/:id", check("supplier-categories:update"), h.Update)
+	r.Delete("/:id", check("supplier-categories:delete"), h.Delete)
 }
 
 func setupWarehouseRoutes(r fiber.Router, reg *registry.Registry) {

@@ -13,7 +13,6 @@ type CreateProductPriceRequest struct {
 	UOMID       uuid.UUID       `json:"uom_id" validate:"required"`
 	MarkupPct   decimal.Decimal `json:"markup_pct"`
 	SellPrice   decimal.Decimal `json:"sell_price" validate:"required"`
-	DiscountPct decimal.Decimal `json:"discount_pct"`
 }
 
 type UpdateProductPriceRequest struct {
@@ -22,7 +21,6 @@ type UpdateProductPriceRequest struct {
 	UOMID       *uuid.UUID       `json:"uom_id"`
 	MarkupPct   *decimal.Decimal `json:"markup_pct"`
 	SellPrice   *decimal.Decimal `json:"sell_price"`
-	DiscountPct *decimal.Decimal `json:"discount_pct"`
 }
 
 type ProductPriceResponse struct {
@@ -35,7 +33,6 @@ type ProductPriceResponse struct {
 	UOM         *UOMResponse       `json:"uom,omitempty"`
 	MarkupPct   decimal.Decimal    `json:"markup_pct"`
 	SellPrice   decimal.Decimal    `json:"sell_price"`
-	DiscountPct decimal.Decimal    `json:"discount_pct"`
 	CreatedAt   time.Time          `json:"created_at"`
 	UpdatedAt   time.Time          `json:"updated_at"`
 }

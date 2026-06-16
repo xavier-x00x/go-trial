@@ -4,6 +4,8 @@ import (
 	"strconv"
 
 	"go-trial/internal/delivery/http/dto"
+	"go-trial/internal/query/params"
+	"go-trial/internal/query/service"
 	"go-trial/internal/usecase"
 	"go-trial/pkg/jwt"
 	"go-trial/pkg/response"
@@ -13,12 +15,13 @@ import (
 )
 
 type MasterDataProposalHandler struct {
-	uc usecase.MasterDataProposalUseCase
-	v  *validator.Validator
+	uc           usecase.MasterDataProposalUseCase
+	queryService *service.MasterDataProposalQueryService
+	v            *validator.Validator
 }
 
-func NewMasterDataProposalHandler(uc usecase.MasterDataProposalUseCase, v *validator.Validator) *MasterDataProposalHandler {
-	return &MasterDataProposalHandler{uc: uc, v: v}
+func NewMasterDataProposalHandler(uc usecase.MasterDataProposalUseCase, qs *service.MasterDataProposalQueryService, v *validator.Validator) *MasterDataProposalHandler {
+	return &MasterDataProposalHandler{uc: uc, queryService: qs, v: v}
 }
 
 func getUserIDFromContext(c *fiber.Ctx) string {
@@ -48,15 +51,18 @@ func (h *MasterDataProposalHandler) Create(c *fiber.Ctx) error {
 
 func (h *MasterDataProposalHandler) GetByID(c *fiber.Ctx) error {
 	id := c.Params("id")
-	result, err := h.uc.GetByID(c.UserContext(), id)
+	result, err := h.queryService.GetByID(c.UserContext(), id)
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, err.Error())
+	}
+	if result == nil {
+		return response.Error(c, fiber.StatusNotFound, "Proposal not found")
 	}
 	return response.Success(c, fiber.StatusOK, "Proposal retrieved successfully", result)
 }
 
 func (h *MasterDataProposalHandler) GetPending(c *fiber.Ctx) error {
-	result, err := h.uc.GetPending(c.UserContext())
+	result, err := h.queryService.GetPending(c.UserContext())
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, err.Error())
 	}
@@ -64,7 +70,7 @@ func (h *MasterDataProposalHandler) GetPending(c *fiber.Ctx) error {
 }
 
 func (h *MasterDataProposalHandler) GetAll(c *fiber.Ctx) error {
-	result, err := h.uc.GetAll(c.UserContext())
+	result, err := h.queryService.GetAll(c.UserContext())
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, err.Error())
 	}
@@ -75,19 +81,19 @@ func (h *MasterDataProposalHandler) GetAllWithPagination(c *fiber.Ctx) error {
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	limit, _ := strconv.Atoi(c.Query("limit", "10"))
 
-	metaRequest := &dto.MetaRequest{
+	metaRequest := &params.MetaRequest{
 		Page:        page,
 		Limit:       limit,
 		Search:      c.Query("search", ""),
 		OrderColumn: c.Query("order_column", "created_at"),
 		OrderDir:    c.Query("order_dir", "desc"),
 		Conditions: map[string]interface{}{
-			"status":      c.Query("status", ""),
-			"entity_type": c.Query("entity_type", ""),
+			"m.status":      c.Query("status", ""),
+			"m.entity_type": c.Query("entity_type", ""),
 		},
 	}
 
-	data, meta, err := h.uc.GetAllWithPagination(c.UserContext(), metaRequest)
+	data, meta, err := h.queryService.GetListPagination(c.UserContext(), metaRequest)
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, err.Error())
 	}
@@ -98,7 +104,7 @@ func (h *MasterDataProposalHandler) GetAllWithPagination(c *fiber.Ctx) error {
 func (h *MasterDataProposalHandler) GetByEntityType(c *fiber.Ctx) error {
 	entityType := c.Params("entityType")
 	status := c.Query("status")
-	result, err := h.uc.GetByEntityType(c.UserContext(), entityType, status)
+	result, err := h.queryService.GetByEntityType(c.UserContext(), entityType, status)
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, err.Error())
 	}
@@ -162,7 +168,7 @@ func (h *MasterDataProposalHandler) BulkLinkProductSupplier(c *fiber.Ctx) error 
 
 func (h *MasterDataProposalHandler) GetByGroup(c *fiber.Ctx) error {
 	groupID := c.Params("groupId")
-	result, err := h.uc.GetByGroup(c.UserContext(), groupID)
+	result, err := h.queryService.GetByGroup(c.UserContext(), groupID)
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, err.Error())
 	}

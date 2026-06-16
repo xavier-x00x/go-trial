@@ -5,6 +5,7 @@ import (
 	"go-trial/internal/delivery/http/handler"
 	"go-trial/internal/infrastructure/repository"
 	"go-trial/internal/infrastructure/uow"
+	"go-trial/internal/query/service"
 	"go-trial/internal/usecase"
 	"go-trial/pkg/validator"
 
@@ -84,8 +85,10 @@ func NewMasterDataRegistry(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *
 		Uow:                uow,
 	})
 
+	proposalQueryService := service.NewMasterDataProposalQueryService(db)
+
 	return &MasterDataRegistry{
-		ProposalHandler:         handler.NewMasterDataProposalHandler(proposalUseCase, v),
+		ProposalHandler:         handler.NewMasterDataProposalHandler(proposalUseCase, proposalQueryService, v),
 		PlanningHandler:       handler.NewPurchaseOrderPlanningHandler(planningUseCase, v),
 		PurchaseOrderHandler: handler.NewPurchaseOrderHandler(poUseCase, v),
 		GoodsReceiptHandler:  handler.NewGoodsReceiptHandler(grUseCase, v),

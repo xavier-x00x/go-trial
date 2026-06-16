@@ -38,12 +38,13 @@ func NewProductRegistry(db *gorm.DB, cfg *config.Config) *ProductRegistry {
 
 	//Query
 	productQueryService := service.NewProductQueryService(db)
+	productPriceQueryService := service.NewProductPriceQueryService(db)
 
 	return &ProductRegistry{
 		Handler:              handler.NewProductHandler(productUseCase, productQueryService, v),
 		CategoryHandler:      handler.NewProductCategoryHandler(categoryUseCase, v),
 		UOMHandler:           handler.NewUOMHandler(uomUseCase, v),
-		ProductPriceHandler:  handler.NewProductPriceHandler(productPriceUseCase, v),
+		ProductPriceHandler:  handler.NewProductPriceHandler(productPriceUseCase, productPriceQueryService, v),
 		UOMConversionHandler: handler.NewProductUOMConversionHandler(productUOMUseCase, v),
 	}
 }

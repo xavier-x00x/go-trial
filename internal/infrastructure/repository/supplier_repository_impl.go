@@ -10,6 +10,7 @@ import (
 	"go-trial/internal/infrastructure/uow"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type supplierRepository struct {
@@ -26,7 +27,7 @@ func (r *supplierRepository) Create(ctx context.Context, s *entity.Supplier) err
 
 func (r *supplierRepository) FindByID(ctx context.Context, id string) (*entity.Supplier, error) {
 	var supplier entity.Supplier
-	err := r.db.WithContext(ctx).Preload("APAccount").Where("id = ?", id).First(&supplier).Error
+	err := r.db.WithContext(ctx).Preload(clause.Associations).Where("id = ?", id).First(&supplier).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil

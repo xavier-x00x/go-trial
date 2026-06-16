@@ -2,6 +2,7 @@ package handler
 
 import (
 	"go-trial/internal/delivery/http/dto"
+	"go-trial/internal/query/service"
 	"go-trial/internal/usecase"
 	"go-trial/pkg/response"
 	"go-trial/pkg/validator"
@@ -10,12 +11,13 @@ import (
 )
 
 type ProductPriceHandler struct {
-	uc *usecase.ProductPriceUsecase
-	v  *validator.Validator
+	uc           *usecase.ProductPriceUsecase
+	queryService *service.ProductPriceQueryService
+	v            *validator.Validator
 }
 
-func NewProductPriceHandler(uc *usecase.ProductPriceUsecase, v *validator.Validator) *ProductPriceHandler {
-	return &ProductPriceHandler{uc: uc, v: v}
+func NewProductPriceHandler(uc *usecase.ProductPriceUsecase, queryService *service.ProductPriceQueryService, v *validator.Validator) *ProductPriceHandler {
+	return &ProductPriceHandler{uc: uc, queryService: queryService, v: v}
 }
 
 func (h *ProductPriceHandler) Create(c *fiber.Ctx) error {
@@ -32,7 +34,7 @@ func (h *ProductPriceHandler) Create(c *fiber.Ctx) error {
 
 func (h *ProductPriceHandler) GetByID(c *fiber.Ctx) error {
 	id := c.Params("id")
-	result, err := h.uc.GetByID(c.UserContext(), id)
+	result, err := h.queryService.GetByID(c.UserContext(), id)
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, err.Error())
 	}
@@ -40,7 +42,7 @@ func (h *ProductPriceHandler) GetByID(c *fiber.Ctx) error {
 }
 
 func (h *ProductPriceHandler) GetAll(c *fiber.Ctx) error {
-	result, err := h.uc.GetAll(c.UserContext())
+	result, err := h.queryService.GetAll(c.UserContext())
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, err.Error())
 	}
@@ -49,7 +51,7 @@ func (h *ProductPriceHandler) GetAll(c *fiber.Ctx) error {
 
 func (h *ProductPriceHandler) GetByProductID(c *fiber.Ctx) error {
 	productID := c.Params("productId")
-	result, err := h.uc.GetByProductID(c.UserContext(), productID)
+	result, err := h.queryService.GetByProductID(c.UserContext(), productID)
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, err.Error())
 	}

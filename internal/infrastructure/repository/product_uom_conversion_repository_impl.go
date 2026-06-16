@@ -9,6 +9,7 @@ import (
 	"go-trial/internal/infrastructure/uow"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type productUOMConversionRepository struct {
@@ -25,7 +26,7 @@ func (r *productUOMConversionRepository) Create(ctx context.Context, puc *entity
 
 func (r *productUOMConversionRepository) FindByID(ctx context.Context, id string) (*entity.ProductUOMConversion, error) {
 	var puc entity.ProductUOMConversion
-	err := r.db.WithContext(ctx).Preload("Product").Preload("UOM").Where("id = ?", id).First(&puc).Error
+	err := r.db.WithContext(ctx).Preload(clause.Associations).Where("id = ?", id).First(&puc).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil

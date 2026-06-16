@@ -1,25 +1,21 @@
 package dto
 
-import (
-	"time"
-
-	"github.com/google/uuid"
-)
+import "time"
 
 type CreateSupplierCategoryRequest struct {
-	Name        string `json:"name" validate:"required,max=100"`
-	Description string `json:"description" validate:"omitempty"`
+	Name        string `json:"name" validate:"required,min=1,max=100"`
+	Description string `json:"description" validate:"max=500"`
 }
 
 type UpdateSupplierCategoryRequest struct {
-	Name        string `json:"name" validate:"required,max=100"`
-	Description string `json:"description" validate:"omitempty"`
+	Name        *string `json:"name,omitempty" validate:"omitempty,min=1,max=100"`
+	Description *string `json:"description,omitempty" validate:"omitempty,max=500"`
 }
 
 type SupplierCategoryResponse struct {
-	ID          uuid.UUID `json:"id"`
+	ID          string    `json:"id"`
 	Name        string    `json:"name"`
-	Description string    `json:"description,omitempty"`
+	Description string    `json:"description"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }

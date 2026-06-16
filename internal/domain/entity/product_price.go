@@ -16,5 +16,4 @@ type ProductPrice struct {
 	UOM         UOM             `gorm:"foreignKey:UOMID" json:"uom,omitempty"`              // Relasi ke tabel UOM
 	MarkupPct   decimal.Decimal `gorm:"type:decimal(5,2);default:0" json:"markup_pct"`      // Persentase Markup. Jika diisi > 0, SellPrice otomatis menjadi: HPP + (HPP * Markup%).
 	SellPrice   decimal.Decimal `gorm:"type:decimal(19,2);not null" json:"sell_price"`      // Harga Jual Final ke konsumen
-	DiscountPct decimal.Decimal `gorm:"type:decimal(5,2);default:0" json:"discount_pct"`    // Persentase diskon langsung (Markdown)
 }
