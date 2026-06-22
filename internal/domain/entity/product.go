@@ -11,11 +11,15 @@ type Product struct {
 	SKU         string          `gorm:"type:varchar(50);not null" json:"sku"`            // Stock Keeping Unit
 	Barcode     *string         `gorm:"type:varchar(50)" json:"barcode"`                 // Nomor Barcode
 	Name        string          `gorm:"type:varchar(200);not null" json:"name"`          // Nama lengkap produk
+	Variant     *string         `gorm:"type:varchar(100)" json:"variant,omitempty"`      // Varian produk (Warna, Ukuran, dll)
 	CategoryID  *uuid.UUID      `gorm:"type:char(36);index" json:"category_id"`          // Pemetaan ke kategori
 	Category    ProductCategory `gorm:"foreignKey:CategoryID" json:"category,omitempty"` // Relasi ke ProductCategory
 	BaseUOMID   uuid.UUID       `gorm:"type:char(36);not null;index" json:"base_uom_id"` // Satuan terkecil
 	BaseUOM     UOM             `gorm:"foreignKey:BaseUOMID" json:"base_uom,omitempty"`  // Relasi ke UOM
 	IsStockable bool            `gorm:"default:true" json:"is_stockable"`                // True jika barang fisik
+	IsTaxable   bool            `gorm:"default:false" json:"is_taxable"`                 // True jika barang dikenakan PPN
+	TaxID       *uuid.UUID      `gorm:"type:char(36);index" json:"tax_id,omitempty"`     // PPN yang berlaku
+	Tax         *Tax            `gorm:"foreignKey:TaxID" json:"tax,omitempty"`           // Relasi ke tabel Tax
 
 	// Informasi Volumetrik & Planogram (Display Shelf Management)
 	Length        decimal.Decimal `gorm:"type:decimal(10,2);default:0" json:"length"` // Panjang barang (cm)

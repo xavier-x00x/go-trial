@@ -47,6 +47,18 @@ func (r *productCategoryRepository) FindBySlug(ctx context.Context, slug string)
 	return &cat, nil
 }
 
+func (r *productCategoryRepository) FindByCode(ctx context.Context, code string) (*entity.ProductCategory, error) {
+	var cat entity.ProductCategory
+	err := r.db.WithContext(ctx).Where("code = ?", code).First(&cat).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to find category by code: %w", err)
+	}
+	return &cat, nil
+}
+
 func (r *productCategoryRepository) FindAll(ctx context.Context) ([]entity.ProductCategory, error) {
 	var cats []entity.ProductCategory
 	err := r.db.WithContext(ctx).Preload("Parent").Find(&cats).Error

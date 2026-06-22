@@ -63,7 +63,7 @@ func (r *productRepository) FindByBarcode(ctx context.Context, barcode string) (
 
 func (r *productRepository) FindAll(ctx context.Context) ([]entity.Product, error) {
 	var products []entity.Product
-	err := r.db.WithContext(ctx).Where("deleted_at IS NULL").Preload("Category").Preload("BaseUOM").Find(&products).Error
+	err := r.db.WithContext(ctx).Where("deleted_at IS NULL").Preload("Category").Preload("BaseUOM").Preload("Tax").Find(&products).Error
 	if err != nil {
 		return nil, fmt.Errorf("failed to find products: %w", err)
 	}
@@ -95,7 +95,7 @@ func (r *productRepository) Delete(ctx context.Context, id string) error {
 	}
 	suffix := fmt.Sprintf("_DEL_%d", time.Now().Unix())
 	updates := map[string]interface{}{
-		"sku":       product.SKU + suffix,
+		"sku":        product.SKU + suffix,
 		"deleted_at": time.Now(),
 	}
 	if product.Barcode != nil {

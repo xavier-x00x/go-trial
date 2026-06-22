@@ -30,8 +30,9 @@ type ProductSupplierLinkDetailDTO struct {
 	IsConsignment       bool            `json:"is_consignment"`
 	IsReturnable        bool            `json:"is_returnable"`
 	DefaultLeadTimeDays int             `json:"default_lead_time_days"`
-	OfferedPrice        decimal.Decimal `json:"offered_price" validate:"required,min=0"`
-	MinOrderQty         decimal.Decimal `json:"min_order_qty" validate:"required,min=1"`
+	PurchaseUOMID       *uuid.UUID      `json:"purchase_uom_id"`
+	OfferedPrice        decimal.Decimal `json:"offered_price" validate:"required"`
+	MinOrderQty         decimal.Decimal `json:"min_order_qty" validate:"required"`
 }
 
 // BulkProposalResponse adalah response untuk operasi bulk proposal.

@@ -21,6 +21,8 @@ type ProductSupplier struct {
 	IsReturnable        bool            `gorm:"default:true" json:"is_returnable"`                                          // True = Barang bisa di-retur (Purchase Return) ke supplier jika rusak/expired.
 	DefaultLeadTimeDays int             `gorm:"default:0" json:"default_lead_time_days"`                                    // Estimasi waktu pengiriman default (hari) secara nasional
 	OfferedPrice        decimal.Decimal `gorm:"type:decimal(19,2);default:0" json:"offered_price"`                          // Harga beli penawaran/kontrak dari supplier ini
+	PurchaseUOMID       *uuid.UUID      `gorm:"type:char(36);index" json:"purchase_uom_id"`                                 // Jika NULL, gunakan BaseUOM Produk.
+	PurchaseUOM         *UOM            `gorm:"foreignKey:PurchaseUOMID" json:"purchase_uom,omitempty"`
 	MinOrderQty         decimal.Decimal `gorm:"type:decimal(15,3);default:1" json:"min_order_qty"`                          // Minimum kuantitas pesanan (MOQ) untuk mendapat harga tersebut
 }
 

@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"encoding/json"
+	"fmt"
 	"strconv"
 
 	"go-trial/internal/delivery/http/dto"
@@ -32,6 +34,81 @@ func getUserIDFromContext(c *fiber.Ctx) string {
 	return claims.UserID
 }
 
+func (h *MasterDataProposalHandler) validatePayloads(entityType, actionType string, items []dto.CreateMasterDataProposalItemInput) []validator.ValidationError {
+	var allErrs []validator.ValidationError
+
+	for i, item := range items {
+		var req interface{}
+
+		switch entityType {
+		case "PRODUCT":
+			if actionType == "CREATE" {
+				req = &dto.CreateProductRequest{}
+			} else if actionType == "UPDATE" {
+				req = &dto.UpdateProductRequest{}
+			}
+		case "PRODUCT_PRICE":
+			if actionType == "CREATE" {
+				req = &dto.CreateProductPriceRequest{}
+			} else if actionType == "UPDATE" {
+				req = &dto.UpdateProductPriceRequest{}
+			}
+		case "PRODUCT_UOM_CONVERSION":
+			if actionType == "CREATE" {
+				req = &dto.CreateProductUOMConversionRequest{}
+			} else if actionType == "UPDATE" {
+				req = &dto.UpdateProductUOMConversionRequest{}
+			}
+		case "SUPPLIER":
+			if actionType == "CREATE" {
+				req = &dto.CreateSupplierRequest{}
+			} else if actionType == "UPDATE" {
+				req = &dto.UpdateSupplierRequest{}
+			}
+		case "PRODUCT_SUPPLIER":
+			if actionType == "CREATE" {
+				req = &dto.CreateProductSupplierRequest{}
+			} else if actionType == "UPDATE" {
+				req = &dto.UpdateProductSupplierRequest{}
+			}
+		case "CHART_OF_ACCOUNT":
+			if actionType == "CREATE" {
+				req = &dto.CreateChartOfAccountRequest{}
+			} else if actionType == "UPDATE" {
+				req = &dto.UpdateChartOfAccountRequest{}
+			}
+		case "TAX":
+			if actionType == "CREATE" {
+				req = &dto.CreateTaxRequest{}
+			} else if actionType == "UPDATE" {
+				req = &dto.UpdateTaxRequest{}
+			}
+		}
+
+		if req != nil {
+			if err := json.Unmarshal([]byte(item.PayloadJSON), req); err != nil {
+				allErrs = append(allErrs, validator.ValidationError{
+					Field:   fmt.Sprintf("items[%d].payload_json", i),
+					Message: "Invalid JSON structure",
+				})
+				continue
+			}
+
+			errs := h.v.Validate(req)
+			if len(errs) > 0 {
+				for _, e := range errs {
+					allErrs = append(allErrs, validator.ValidationError{
+						Field:   fmt.Sprintf("items[%d].%s", i, e.Field),
+						Message: e.Message,
+					})
+				}
+			}
+		}
+	}
+
+	return allErrs
+}
+
 func (h *MasterDataProposalHandler) Create(c *fiber.Ctx) error {
 	var req dto.CreateMasterDataProposalRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -41,6 +118,10 @@ func (h *MasterDataProposalHandler) Create(c *fiber.Ctx) error {
 		return response.ValidationError(c, "Validation failed", errs)
 	}
 	
+	if payloadErrs := h.validatePayloads(req.EntityType, req.ActionType, req.Items); len(payloadErrs) > 0 {
+		return response.ValidationError(c, "Payload validation failed", payloadErrs)
+	}
+
 	userID := getUserIDFromContext(c)
 	result, err := h.uc.Create(c.UserContext(), userID, req)
 	if err != nil {
@@ -134,6 +215,18 @@ func (h *MasterDataProposalHandler) Update(c *fiber.Ctx) error {
 	}
 	if errs := h.v.Validate(req); len(errs) > 0 {
 		return response.ValidationError(c, "Validation failed", errs)
+	}
+
+	proposal, err := h.queryService.GetByID(c.UserContext(), id)
+	if err != nil {
+		return response.Error(c, fiber.StatusInternalServerError, err.Error())
+	}
+	if proposal == nil {
+		return response.Error(c, fiber.StatusNotFound, "Proposal not found")
+	}
+
+	if payloadErrs := h.validatePayloads(proposal.EntityType, proposal.ActionType, req.Items); len(payloadErrs) > 0 {
+		return response.ValidationError(c, "Payload validation failed", payloadErrs)
 	}
 
 	userID := getUserIDFromContext(c)

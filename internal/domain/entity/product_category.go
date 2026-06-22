@@ -12,5 +12,7 @@ type ProductCategory struct {
 	Parent           *ProductCategory `gorm:"foreignKey:ParentID" json:"parent,omitempty"`           // Relasi ke kategori induk
 	Name             string           `gorm:"type:varchar(100);not null" json:"name"`                // Nama kategori (cth: Sembako)
 	Slug             string           `gorm:"type:varchar(120);uniqueIndex;not null" json:"slug"`    // SEO/URL Friendly identifier
+	Code             string           `gorm:"type:char(3);uniqueIndex;not null" json:"code"`         // Kode kategori (3 huruf besar)
+	Sequence         int              `gorm:"type:int;default:0" json:"sequence"`                    // Sequence number untuk SKU generator
 	DefaultMarkupPct decimal.Decimal  `gorm:"type:decimal(7,2);default:0" json:"default_markup_pct"` // Markup default untuk auto-pricing (Fallback System)
 }

@@ -52,19 +52,19 @@ func (h *ProductHandler) Create(c *fiber.Ctx) error {
 func (h *ProductHandler) GetByID(c *fiber.Ctx) error {
 	id := c.Params("id")
 
-	resp, err := h.productUseCase.GetByID(c.UserContext(), id)
+	resp, err := h.queryService.GetByID(c.UserContext(), id)
 	if err != nil {
-		if errors.Is(err, usecase.ErrProductNotFound) {
-			return response.Error(c, fiber.StatusNotFound, err.Error())
-		}
 		return response.Error(c, fiber.StatusInternalServerError, "Failed to get product")
+	}
+	if resp == nil {
+		return response.Error(c, fiber.StatusNotFound, "Product not found")
 	}
 
 	return response.Success(c, fiber.StatusOK, "Product retrieved successfully", resp)
 }
 
 func (h *ProductHandler) GetAll(c *fiber.Ctx) error {
-	resp, err := h.productUseCase.GetAll(c.UserContext())
+	resp, err := h.queryService.GetAll(c.UserContext())
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, "Failed to get products")
 	}
@@ -73,26 +73,6 @@ func (h *ProductHandler) GetAll(c *fiber.Ctx) error {
 }
 
 func (h *ProductHandler) GetAllWithPagination(c *fiber.Ctx) error {
-	page, _ := strconv.Atoi(c.Query("page", "1"))
-	limit, _ := strconv.Atoi(c.Query("limit", "10"))
-
-	metaRequest := &dto.MetaRequest{
-		Page:        page,
-		Limit:       limit,
-		Search:      c.Query("search", ""),
-		OrderColumn: c.Query("order_column", "id"),
-		OrderDir:    c.Query("order_dir", "asc"),
-	}
-
-	data, meta, err := h.productUseCase.GetAllWithPagination(c.UserContext(), metaRequest)
-	if err != nil {
-		return response.Error(c, fiber.StatusInternalServerError, "Failed to get products")
-	}
-
-	return response.SuccessWithMeta(c, fiber.StatusOK, "Products retrieved successfully", data, meta)
-}
-
-func (h *ProductHandler) GetAllWithPaginationQuery(c *fiber.Ctx) error {
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	limit, _ := strconv.Atoi(c.Query("limit", "10"))
 
@@ -149,4 +129,13 @@ func (h *ProductHandler) Delete(c *fiber.Ctx) error {
 	}
 
 	return response.Success(c, fiber.StatusOK, "Product deleted successfully", nil)
+}
+
+func (h *ProductHandler) GetProductSuppliers(c *fiber.Ctx) error {
+	id := c.Params("id")
+	resp, err := h.queryService.GetProductSuppliers(c.UserContext(), id)
+	if err != nil {
+		return response.Error(c, fiber.StatusInternalServerError, "Failed to get product suppliers")
+	}
+	return response.Success(c, fiber.StatusOK, "Product suppliers retrieved successfully", resp)
 }

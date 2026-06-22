@@ -3,6 +3,8 @@ package usecase
 import (
 	"context"
 	"errors"
+	"strconv"
+	"strings"
 
 	"go-trial/internal/delivery/http/dto"
 	"go-trial/internal/domain/entity"
@@ -78,9 +80,12 @@ func (u *productUseCase) Create(ctx context.Context, req dto.CreateProductReques
 	product.SKU = req.SKU
 	product.Barcode = req.Barcode
 	product.Name = req.Name
-	product.CategoryID = req.CategoryID
+	product.Variant = req.Variant
+	product.CategoryID = &req.CategoryID
 	product.BaseUOMID = req.BaseUOMID
 	product.IsStockable = req.IsStockable
+	product.IsTaxable = req.IsTaxable
+	product.TaxID = req.TaxID
 	product.Length = req.Length
 	product.Width = req.Width
 	product.Height = req.Height
@@ -96,6 +101,22 @@ func (u *productUseCase) Create(ctx context.Context, req dto.CreateProductReques
 
 	if err := u.productRepo.Create(txCtx, product); err != nil {
 		return nil, err
+	}
+
+	if req.CategoryID != uuid.Nil {
+		cat, err := u.categoryRepo.FindByID(txCtx, req.CategoryID.String())
+		if err == nil && cat != nil {
+			prefix := cat.Code + "-"
+			if strings.HasPrefix(req.SKU, prefix) {
+				numStr := strings.TrimPrefix(req.SKU, prefix)
+				if num, err := strconv.Atoi(numStr); err == nil && num > cat.Sequence {
+					cat.Sequence = num
+					if err := u.categoryRepo.Update(txCtx, cat); err != nil {
+						return nil, err
+					}
+				}
+			}
+		}
 	}
 
 	if err := u.uow.Commit(txCtx); err != nil {
@@ -181,6 +202,9 @@ func (u *productUseCase) Update(ctx context.Context, id string, req dto.UpdatePr
 	if req.Name != nil {
 		product.Name = *req.Name
 	}
+	if req.Variant != nil {
+		product.Variant = req.Variant
+	}
 	if req.CategoryID != nil {
 		product.CategoryID = req.CategoryID
 	}
@@ -189,6 +213,12 @@ func (u *productUseCase) Update(ctx context.Context, id string, req dto.UpdatePr
 	}
 	if req.IsStockable != nil {
 		product.IsStockable = *req.IsStockable
+	}
+	if req.IsTaxable != nil {
+		product.IsTaxable = *req.IsTaxable
+	}
+	if req.TaxID != nil {
+		product.TaxID = req.TaxID
 	}
 	if req.Length != nil {
 		product.Length = *req.Length
@@ -265,17 +295,29 @@ func toProductResponse(p *entity.Product, category *dto.CategoryResponse, uom *d
 			Slug: p.Category.Slug,
 		}
 	}
+	var taxResp *dto.TaxResponse
+	if p.Tax != nil && p.Tax.ID != uuid.Nil {
+		taxResp = &dto.TaxResponse{
+			ID:             p.Tax.ID,
+			Name:           p.Tax.Name,
+			RatePercentage: p.Tax.RatePercentage,
+		}
+	}
 
 	return dto.ProductResponse{
 		ID:         p.ID,
 		SKU:        p.SKU,
 		Barcode:    p.Barcode,
 		Name:       p.Name,
+		Variant:    p.Variant,
 		CategoryID: p.CategoryID,
 		Category:  category,
 		BaseUOMID: p.BaseUOMID,
 		BaseUOM:   uom,
 		IsStockable: p.IsStockable,
+		IsTaxable: p.IsTaxable,
+		TaxID:     p.TaxID,
+		Tax:       taxResp,
 		Length:    p.Length,
 		Width:     p.Width,
 		Height:    p.Height,

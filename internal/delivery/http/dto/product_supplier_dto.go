@@ -15,9 +15,10 @@ type CreateProductSupplierRequest struct {
 	IsPrimary           bool            `json:"is_primary"`
 	IsConsignment       bool            `json:"is_consignment"`
 	IsReturnable        bool            `json:"is_returnable"`
-	DefaultLeadTimeDays int             `json:"default_lead_time_days" validate:"min=0"`
-	OfferedPrice        decimal.Decimal `json:"offered_price" validate:"min=0"`
-	MinOrderQty         decimal.Decimal `json:"min_order_qty" validate:"min=0"`
+	DefaultLeadTimeDays int             `json:"default_lead_time_days" `
+        PurchaseUOMID       *uuid.UUID      `json:"purchase_uom_id"`
+	OfferedPrice        decimal.Decimal `json:"offered_price" `
+	MinOrderQty         decimal.Decimal `json:"min_order_qty" `
 }
 
 type CreateProductSupplierItemRequest struct {
@@ -28,9 +29,10 @@ type CreateProductSupplierItemRequest struct {
 	IsPrimary           bool            `json:"is_primary"`
 	IsConsignment       bool            `json:"is_consignment"`
 	IsReturnable        bool            `json:"is_returnable"`
-	DefaultLeadTimeDays int             `json:"default_lead_time_days" validate:"min=0"`
-	OfferedPrice        decimal.Decimal `json:"offered_price" validate:"min=0"`
-	MinOrderQty         decimal.Decimal `json:"min_order_qty" validate:"min=0"`
+	DefaultLeadTimeDays int             `json:"default_lead_time_days" `
+        PurchaseUOMID       *uuid.UUID      `json:"purchase_uom_id"`
+	OfferedPrice        decimal.Decimal `json:"offered_price" `
+	MinOrderQty         decimal.Decimal `json:"min_order_qty" `
 }
 
 type UpdateProductSupplierRequest struct {
@@ -39,9 +41,10 @@ type UpdateProductSupplierRequest struct {
 	IsPrimary           bool            `json:"is_primary"`
 	IsConsignment       bool            `json:"is_consignment"`
 	IsReturnable        bool            `json:"is_returnable"`
-	DefaultLeadTimeDays int             `json:"default_lead_time_days" validate:"min=0"`
-	OfferedPrice        decimal.Decimal `json:"offered_price" validate:"min=0"`
-	MinOrderQty         decimal.Decimal `json:"min_order_qty" validate:"min=0"`
+	DefaultLeadTimeDays int             `json:"default_lead_time_days" `
+        PurchaseUOMID       *uuid.UUID      `json:"purchase_uom_id"`
+	OfferedPrice        decimal.Decimal `json:"offered_price" `
+	MinOrderQty         decimal.Decimal `json:"min_order_qty" `
 }
 
 type ProductSupplierResponse struct {
@@ -54,6 +57,7 @@ type ProductSupplierResponse struct {
 	IsConsignment       bool            `json:"is_consignment"`
 	IsReturnable        bool            `json:"is_returnable"`
 	DefaultLeadTimeDays int             `json:"default_lead_time_days"`
+	PurchaseUOMID       *uuid.UUID      `json:"purchase_uom_id,omitempty"`
 	OfferedPrice        decimal.Decimal `json:"offered_price"`
 	MinOrderQty         decimal.Decimal `json:"min_order_qty"`
 	CreatedAt           time.Time       `json:"created_at"`

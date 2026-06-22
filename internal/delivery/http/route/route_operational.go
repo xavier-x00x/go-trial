@@ -40,8 +40,8 @@ func setupProducts(r fiber.Router, p *registry.ProductRegistry) {
 	r.Post("", check("products:create"), h.Create)
 	r.Get("", check("products:view"), h.GetAll)
 	r.Get("/pagination", check("products:view"), h.GetAllWithPagination)
-	r.Get("/query", check("products:view"), h.GetAllWithPaginationQuery)
 	r.Get("/:id", check("products:view"), h.GetByID)
+	r.Get("/:id/suppliers", check("products:view"), h.GetProductSuppliers)
 	r.Put("/:id", check("products:update"), h.Update)
 	r.Delete("/:id", check("products:delete"), h.Delete)
 }
@@ -52,6 +52,7 @@ func setupCategories(r fiber.Router, p *registry.ProductRegistry) {
 	r.Post("", h.Create)
 	r.Get("", h.GetAll)
 	r.Get("/pagination", h.GetAllWithPagination)
+	r.Get("/:id/next-sku", h.GetNextSKU)
 	r.Get("/:id", h.GetByID)
 	r.Put("/:id", h.Update)
 	r.Delete("/:id", h.Delete)

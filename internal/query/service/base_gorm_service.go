@@ -59,7 +59,7 @@ func PaginateAndFilter[T any](db *gorm.DB, baseQuery *gorm.DB, meta *params.Meta
 		var values []interface{}
 
 		for _, column := range searchColumns {
-			conditions = append(conditions, fmt.Sprintf("%s ILIKE ?", column))
+			conditions = append(conditions, fmt.Sprintf("%s LIKE ?", column))
 			values = append(values, "%"+search+"%")
 		}
 

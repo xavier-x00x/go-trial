@@ -3,7 +3,9 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
 	"regexp"
+	"strings"
 
 	"go-trial/internal/delivery/http/dto"
 	"go-trial/internal/domain/entity"
@@ -14,6 +16,7 @@ import (
 )
 
 var slugRegex = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
+var codeRegex = regexp.MustCompile(`^[A-Z]{3}$`)
 
 var (
 	ErrCategoryNotFound = errors.New("category not found")
@@ -26,6 +29,7 @@ type ProductCategoryUseCase interface {
 	GetAllWithPagination(ctx context.Context, meta *dto.MetaRequest) ([]dto.CategoryResponse, *entity.Meta, error)
 	Update(ctx context.Context, id string, req dto.UpdateCategoryRequest) (*dto.CategoryResponse, error)
 	Delete(ctx context.Context, id string) error
+	GetNextSKU(ctx context.Context, id string) (string, error)
 }
 
 type productCategoryUseCase struct {
@@ -49,6 +53,15 @@ func (u *productCategoryUseCase) Create(ctx context.Context, req dto.CreateCateg
 		fe.Add("default_markup_pct", "default_markup_pct harus antara 0 dan 99999.99")
 	}
 
+	if req.Code != "" {
+		req.Code = strings.ToUpper(req.Code)
+		if !codeRegex.MatchString(req.Code) {
+			fe.Add("code", "code harus terdiri dari 3 huruf besar")
+		}
+	} else {
+		fe.Add("code", "code harus diisi")
+	}
+
 	existing, err := u.categoryRepo.FindBySlug(ctx, req.Slug)
 	if err != nil {
 		return nil, err
@@ -56,6 +69,16 @@ func (u *productCategoryUseCase) Create(ctx context.Context, req dto.CreateCateg
 	if existing != nil {
 		fe.Add("slug", "slug sudah digunakan")
 		// return nil, ErrCategorySlugExists
+	}
+
+	if req.Code != "" {
+		existingCode, err := u.categoryRepo.FindByCode(ctx, req.Code)
+		if err != nil {
+			return nil, err
+		}
+		if existingCode != nil {
+			fe.Add("code", "code sudah digunakan")
+		}
 	}
 
 	if len(fe.Errors) > 0 {
@@ -69,6 +92,8 @@ func (u *productCategoryUseCase) Create(ctx context.Context, req dto.CreateCateg
 	cat.ParentID = req.ParentID
 	cat.Name = req.Name
 	cat.Slug = req.Slug
+	cat.Code = req.Code
+	cat.Sequence = req.Sequence
 	cat.DefaultMarkupPct = req.DefaultMarkupPct
 
 	txCtx, err := u.uow.Begin(ctx)
@@ -100,6 +125,20 @@ func (u *productCategoryUseCase) GetByID(ctx context.Context, id string) (*dto.C
 
 	resp := toCategoryResponse(cat)
 	return &resp, nil
+}
+
+func (u *productCategoryUseCase) GetNextSKU(ctx context.Context, id string) (string, error) {
+	cat, err := u.categoryRepo.FindByID(ctx, id)
+	if err != nil {
+		return "", err
+	}
+	if cat == nil {
+		return "", ErrCategoryNotFound
+	}
+
+	nextSeq := cat.Sequence + 1
+	// format: KODE-5DIGIT
+	return fmt.Sprintf("%s-%05d", cat.Code, nextSeq), nil
 }
 
 func (u *productCategoryUseCase) GetAll(ctx context.Context) ([]dto.CategoryResponse, error) {
@@ -164,6 +203,22 @@ func (u *productCategoryUseCase) Update(ctx context.Context, id string, req dto.
 			cat.Slug = *req.Slug
 		}
 	}
+	if req.Code != nil {
+		codeStr := strings.ToUpper(*req.Code)
+		if !codeRegex.MatchString(codeStr) {
+			fe.Add("code", "code harus terdiri dari 3 huruf besar")
+		} else if codeStr != cat.Code {
+			existingCode, err := u.categoryRepo.FindByCode(ctx, codeStr)
+			if err != nil {
+				return nil, err
+			}
+			if existingCode != nil {
+				fe.Add("code", "code sudah digunakan")
+			} else {
+				cat.Code = codeStr
+			}
+		}
+	}
 	if req.Name != nil {
 		cat.Name = *req.Name
 	}
@@ -175,6 +230,9 @@ func (u *productCategoryUseCase) Update(ctx context.Context, id string, req dto.
 	}
 	if req.DefaultMarkupPct != nil {
 		cat.DefaultMarkupPct = *req.DefaultMarkupPct
+	}
+	if req.Sequence != nil {
+		cat.Sequence = *req.Sequence
 	}
 
 	if len(fe.Errors) > 0 {
@@ -227,6 +285,8 @@ func toCategoryResponse(cat *entity.ProductCategory) dto.CategoryResponse {
 		ParentID:         cat.ParentID,
 		Name:             cat.Name,
 		Slug:             cat.Slug,
+		Code:             cat.Code,
+		Sequence:         cat.Sequence,
 		DefaultMarkupPct: cat.DefaultMarkupPct,
 		CreatedAt:        cat.CreatedAt,
 		UpdatedAt:        cat.UpdatedAt,
@@ -245,6 +305,8 @@ func toCategoryListResponse(cat *entity.ProductCategory) dto.CategoryResponse {
 		ParentID:         cat.ParentID,
 		Name:             cat.Name,
 		Slug:             cat.Slug,
+		Code:             cat.Code,
+		Sequence:         cat.Sequence,
 		DefaultMarkupPct: cat.DefaultMarkupPct,
 		CreatedAt:        cat.CreatedAt,
 		UpdatedAt:        cat.UpdatedAt,

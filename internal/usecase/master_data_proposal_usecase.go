@@ -694,7 +694,8 @@ func executeCreateProduct(ctx context.Context, repo repository.ProductRepository
 		SKU:         req.SKU,
 		Barcode:     req.Barcode,
 		Name:        req.Name,
-		CategoryID:  req.CategoryID,
+		Variant:     req.Variant,
+		CategoryID:  &req.CategoryID,
 		BaseUOMID:   req.BaseUOMID,
 		IsStockable: req.IsStockable,
 		Length:      req.Length,
@@ -722,6 +723,9 @@ func executeUpdateProduct(ctx context.Context, repo repository.ProductRepository
 	if req.Name != nil {
 		product.Name = *req.Name
 	}
+	if req.Variant != nil {
+		product.Variant = req.Variant
+	}
 	if req.Barcode != nil {
 		product.Barcode = req.Barcode
 	}
@@ -730,6 +734,37 @@ func executeUpdateProduct(ctx context.Context, repo repository.ProductRepository
 	}
 	if req.BaseUOMID != nil {
 		product.BaseUOMID = *req.BaseUOMID
+	}
+	if req.IsStockable != nil {
+		product.IsStockable = *req.IsStockable
+	}
+	if req.IsTaxable != nil {
+		product.IsTaxable = *req.IsTaxable
+	}
+	if req.TaxID != nil {
+		product.TaxID = req.TaxID
+	}
+	if req.Length != nil {
+		product.Length = *req.Length
+	}
+	if req.Width != nil {
+		product.Width = *req.Width
+	}
+	if req.Height != nil {
+		product.Height = *req.Height
+	}
+	if req.Weight != nil {
+		product.Weight = *req.Weight
+	}
+	if req.IsStackable != nil {
+		product.IsStackable = *req.IsStackable
+		if !product.IsStackable {
+			product.MaxStackLayer = 0
+		} else if req.MaxStackLayer != nil {
+			product.MaxStackLayer = *req.MaxStackLayer
+		}
+	} else if req.MaxStackLayer != nil {
+		product.MaxStackLayer = *req.MaxStackLayer
 	}
 	txCtx, _ := uow.Begin(ctx)
 	defer uow.Rollback(txCtx)
@@ -814,6 +849,31 @@ func executeUpdateProductUOMConversion(ctx context.Context, repo repository.Prod
 	}
 	if req.ConversionRate != nil {
 		puc.ConversionRate = *req.ConversionRate
+	}
+	if req.Barcode != nil {
+		puc.Barcode = req.Barcode
+	}
+	if req.Length != nil {
+		puc.Length = *req.Length
+	}
+	if req.Width != nil {
+		puc.Width = *req.Width
+	}
+	if req.Height != nil {
+		puc.Height = *req.Height
+	}
+	if req.Weight != nil {
+		puc.Weight = *req.Weight
+	}
+	if req.IsStackable != nil {
+		puc.IsStackable = *req.IsStackable
+		if !puc.IsStackable {
+			puc.MaxStackLayer = 0
+		} else if req.MaxStackLayer != nil {
+			puc.MaxStackLayer = *req.MaxStackLayer
+		}
+	} else if req.MaxStackLayer != nil {
+		puc.MaxStackLayer = *req.MaxStackLayer
 	}
 	txCtx, _ := uow.Begin(ctx)
 	defer uow.Rollback(txCtx)
@@ -923,6 +983,7 @@ func executeCreateProductSupplier(ctx context.Context, repo repository.ProductSu
 		IsConsignment:       req.IsConsignment,
 		IsReturnable:        req.IsReturnable,
 		DefaultLeadTimeDays: req.DefaultLeadTimeDays,
+		PurchaseUOMID:       req.PurchaseUOMID,
 		OfferedPrice:        req.OfferedPrice,
 		MinOrderQty:         req.MinOrderQty,
 	}
@@ -952,9 +1013,10 @@ func executeUpdateProductSupplier(ctx context.Context, repo repository.ProductSu
 
 func executeCreateChartOfAccount(ctx context.Context, repo repository.ChartOfAccountRepository, req *dto.CreateChartOfAccountRequest, uow uow.UnitOfWork) error {
 	coa := &entity.ChartOfAccount{
-		AccountCode: req.AccountCode,
-		Name:        req.Name,
-		AccountType: req.AccountType,
+		AccountCode:   req.AccountCode,
+		Name:          req.Name,
+		AccountType:   req.AccountType,
+		NormalBalance: req.NormalBalance,
 	}
 	if err := coa.GenerateID(); err != nil {
 		return err
@@ -974,6 +1036,18 @@ func executeUpdateChartOfAccount(ctx context.Context, repo repository.ChartOfAcc
 	}
 	if req.Name != nil {
 		coa.Name = *req.Name
+	}
+	if req.AccountCode != nil {
+		coa.AccountCode = *req.AccountCode
+	}
+	if req.AccountType != nil {
+		coa.AccountType = *req.AccountType
+	}
+	if req.NormalBalance != nil {
+		coa.NormalBalance = *req.NormalBalance
+	}
+	if req.IsActive != nil {
+		coa.IsActive = *req.IsActive
 	}
 	txCtx, _ := uow.Begin(ctx)
 	defer uow.Rollback(txCtx)
@@ -1107,6 +1181,7 @@ func (u *masterDataProposalUseCaseImpl) BulkLinkProductSupplier(ctx context.Cont
 			IsConsignment:       item.IsConsignment,
 			IsReturnable:        item.IsReturnable,
 			DefaultLeadTimeDays: item.DefaultLeadTimeDays,
+			PurchaseUOMID:       item.PurchaseUOMID,
 			OfferedPrice:        item.OfferedPrice,
 			MinOrderQty:         item.MinOrderQty,
 		}

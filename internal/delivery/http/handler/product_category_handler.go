@@ -59,6 +59,22 @@ func (h *ProductCategoryHandler) GetByID(c *fiber.Ctx) error {
 	return response.Success(c, fiber.StatusOK, "Category retrieved successfully", resp)
 }
 
+func (h *ProductCategoryHandler) GetNextSKU(c *fiber.Ctx) error {
+	id := c.Params("id")
+
+	sku, err := h.categoryUseCase.GetNextSKU(c.UserContext(), id)
+	if err != nil {
+		if errors.Is(err, usecase.ErrCategoryNotFound) {
+			return response.Error(c, fiber.StatusNotFound, err.Error())
+		}
+		return response.Error(c, fiber.StatusInternalServerError, "Failed to get next SKU")
+	}
+
+	return response.Success(c, fiber.StatusOK, "Next SKU retrieved successfully", fiber.Map{
+		"sku": sku,
+	})
+}
+
 func (h *ProductCategoryHandler) GetAll(c *fiber.Ctx) error {
 	resp, err := h.categoryUseCase.GetAll(c.UserContext())
 	if err != nil {
