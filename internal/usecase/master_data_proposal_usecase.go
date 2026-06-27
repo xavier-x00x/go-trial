@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"go-trial/internal/delivery/http/dto"
@@ -13,6 +14,7 @@ import (
 	"go-trial/internal/infrastructure/uow"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 )
 
 var (
@@ -29,6 +31,7 @@ type MasterDataProposalUseCase interface {
 	Execute(ctx context.Context, id string) error
 	Delete(ctx context.Context, userID string, id string) error
 	BulkLinkProductSupplier(ctx context.Context, userID string, req dto.BulkCreateProductSupplierProposalRequest) (*dto.BulkProposalResponse, error)
+	GenerateProductPricesFromTodayGR(ctx context.Context, userID uuid.UUID) (int, error)
 }
 
 type masterDataProposalUseCaseImpl struct {
@@ -41,6 +44,9 @@ type masterDataProposalUseCaseImpl struct {
 	coaRepo             repository.ChartOfAccountRepository
 	taxRepo             repository.TaxRepository
 	numberSequenceRepo  repository.NumberSequenceRepository
+	goodsReceiptRepo    repository.GoodsReceiptRepository
+	priceListRepo       repository.PriceListRepository
+	inventoryStockRepo  repository.InventoryStockRepository
 	uow                 uow.UnitOfWork
 }
 
@@ -54,6 +60,9 @@ type MasterDataProposalUseCaseConfig struct {
 	CoaRepo             repository.ChartOfAccountRepository
 	TaxRepo             repository.TaxRepository
 	NumberSequenceRepo  repository.NumberSequenceRepository
+	GoodsReceiptRepo    repository.GoodsReceiptRepository
+	PriceListRepo       repository.PriceListRepository
+	InventoryStockRepo  repository.InventoryStockRepository
 	Uow                 uow.UnitOfWork
 }
 
@@ -68,6 +77,9 @@ func NewMasterDataProposalUseCase(cfg MasterDataProposalUseCaseConfig) MasterDat
 		coaRepo:             cfg.CoaRepo,
 		taxRepo:             cfg.TaxRepo,
 		numberSequenceRepo:  cfg.NumberSequenceRepo,
+		goodsReceiptRepo:    cfg.GoodsReceiptRepo,
+		priceListRepo:       cfg.PriceListRepo,
+		inventoryStockRepo:  cfg.InventoryStockRepo,
 		uow:                 cfg.Uow,
 	}
 }
@@ -812,6 +824,18 @@ func executeDeleteProduct(ctx context.Context, repo repository.ProductRepository
 }
 
 func executeCreateProductPrice(ctx context.Context, repo repository.ProductPriceRepository, req *dto.CreateProductPriceRequest, uow uow.UnitOfWork) error {
+	existing, err := repo.FindByPriceListProductAndUOM(ctx, req.PriceListID.String(), req.ProductID.String(), req.UOMID.String())
+	if err == nil && existing != nil {
+		existing.MarkupPct = req.MarkupPct
+		existing.SellPrice = req.SellPrice
+		txCtx, _ := uow.Begin(ctx)
+		defer uow.Rollback(txCtx)
+		if err := repo.Update(txCtx, existing); err != nil {
+			return err
+		}
+		return uow.Commit(txCtx)
+	}
+
 	pp := &entity.ProductPrice{
 		PriceListID: req.PriceListID,
 		ProductID:   req.ProductID,
@@ -1266,4 +1290,327 @@ func (u *masterDataProposalUseCaseImpl) BulkLinkProductSupplier(ctx context.Cont
 		FailedCount:      failedCount,
 		Proposals:        proposalResponses,
 	}, nil
+}
+
+func (u *masterDataProposalUseCaseImpl) GenerateProductPricesFromTodayGR(ctx context.Context, userID uuid.UUID) (int, error) {
+	// 1. Get today's posted GR items
+	today := time.Now()
+	grItems, err := u.goodsReceiptRepo.FindPostedItemsByDate(ctx, today)
+	if err != nil {
+		return 0, err
+	}
+
+	// 2. Get products that do not have a price list entry
+	unpricedProducts, err := u.productRepo.FindWithoutPrices(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	if len(grItems) == 0 && len(unpricedProducts) == 0 {
+		return 0, nil
+	}
+
+	// 3. Extract unique combinations of ProductID and UOMID and associate with CategoryID
+	type prodUomKey struct {
+		ProductID uuid.UUID
+		UOMID     uuid.UUID
+	}
+	
+	uniqueKeys := make(map[prodUomKey]uuid.UUID) // maps (ProductID, UOMID) to CategoryID
+	productMap := make(map[uuid.UUID]*entity.Product)
+	hppMap := make(map[prodUomKey]decimal.Decimal)
+
+	// Process today's GR items
+	for _, item := range grItems {
+		// Check if the purchase price is different from the previous GR
+		lastPrice, err := u.goodsReceiptRepo.FindLastPriceBeforeDate(ctx, item.ProductID.String(), item.UOMID.String(), today)
+		if err != nil {
+			return 0, err
+		}
+
+		// If there is a previous GR and the price is the same, skip it
+		if lastPrice != nil && lastPrice.Equal(item.NetUnitPrice) {
+			continue
+		}
+
+		key := prodUomKey{
+			ProductID: item.ProductID,
+			UOMID:     item.UOMID,
+		}
+		
+		product, err := u.productRepo.FindByID(ctx, item.ProductID.String())
+		if err != nil {
+			return 0, err
+		}
+		if product == nil {
+			continue
+		}
+		
+		catID := uuid.Nil
+		if product.CategoryID != nil {
+			catID = *product.CategoryID
+		}
+		uniqueKeys[key] = catID
+		productMap[item.ProductID] = product
+		hppMap[key] = item.NetUnitPrice
+	}
+
+	// Process products without prices
+	for _, prod := range unpricedProducts {
+		key := prodUomKey{
+			ProductID: prod.ID,
+			UOMID:     prod.BaseUOMID,
+		}
+		
+		catID := uuid.Nil
+		if prod.CategoryID != nil {
+			catID = *prod.CategoryID
+		}
+		uniqueKeys[key] = catID
+		pCopy := prod
+		productMap[prod.ID] = &pCopy
+	}
+
+	if len(uniqueKeys) == 0 {
+		return 0, nil
+	}
+
+	// 4. Find the first active price list
+	activePriceLists, err := u.priceListRepo.FindActive(ctx)
+	if err != nil {
+		return 0, err
+	}
+	if len(activePriceLists) == 0 {
+		return 0, fmt.Errorf("no active price list found")
+	}
+	defaultPriceListID := activePriceLists[0].ID
+
+	// 5. Group products by CategoryID
+	type itemDetail struct {
+		ProductID uuid.UUID
+		UOMID     uuid.UUID
+	}
+	groupedItems := make(map[uuid.UUID][]itemDetail)
+	for key, catID := range uniqueKeys {
+		groupedItems[catID] = append(groupedItems[catID], itemDetail{
+			ProductID: key.ProductID,
+			UOMID:     key.UOMID,
+		})
+	}
+
+	// 6. Save proposals inside a single UOW transaction
+	txCtx, err := u.uow.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer u.uow.Rollback(txCtx)
+
+	proposalCount := 0
+	for _, items := range groupedItems {
+		refNum, err := u.generateReferenceNumber(entity.ProposalEntityProductPrice, today)
+		if err != nil {
+			return 0, err
+		}
+
+		proposalItems := make([]entity.MasterDataProposalItem, len(items))
+		for i, item := range items {
+			prod := productMap[item.ProductID]
+			markupPct := decimal.Zero
+
+			key := prodUomKey{ProductID: item.ProductID, UOMID: item.UOMID}
+
+			// 1. Ambil HPP dari InventoryStock AverageBuyPrice
+			hpp := decimal.Zero
+			stocks, errStock := u.inventoryStockRepo.FindByProductID(ctx, item.ProductID.String())
+			if errStock == nil && len(stocks) > 0 {
+				totalQty := decimal.Zero
+				totalValue := decimal.Zero
+				var fallbackHPP decimal.Decimal
+
+				for _, st := range stocks {
+					if st.AverageBuyPrice.GreaterThan(decimal.Zero) && fallbackHPP.IsZero() {
+						fallbackHPP = st.AverageBuyPrice
+					}
+					if st.Quantity.GreaterThan(decimal.Zero) {
+						totalQty = totalQty.Add(st.Quantity)
+						totalValue = totalValue.Add(st.Quantity.Mul(st.AverageBuyPrice))
+					}
+				}
+
+				baseHPP := decimal.Zero
+				if totalQty.GreaterThan(decimal.Zero) {
+					baseHPP = totalValue.Div(totalQty)
+				} else if !fallbackHPP.IsZero() {
+					baseHPP = fallbackHPP
+				}
+
+				if baseHPP.GreaterThan(decimal.Zero) {
+					if prod != nil && item.UOMID == prod.BaseUOMID {
+						hpp = baseHPP
+					} else {
+						uomConvs, errConv := u.productUOMRepo.FindByProductID(ctx, item.ProductID.String())
+						multiplier := decimal.NewFromInt(1)
+						if errConv == nil {
+							for _, conv := range uomConvs {
+								if conv.UOMID == item.UOMID && conv.ConversionRate.GreaterThan(decimal.Zero) {
+									multiplier = conv.ConversionRate
+									break
+								}
+							}
+						}
+						hpp = baseHPP.Mul(multiplier)
+					}
+				}
+			}
+
+			// 2. Fallback jika HPP dari InventoryStock 0 / belum ada
+			if hpp.IsZero() {
+				if netPrice, ok := hppMap[key]; ok && netPrice.GreaterThan(decimal.Zero) {
+					hpp = netPrice
+				} else {
+					lastPrice, err := u.goodsReceiptRepo.FindLastPriceBeforeDate(ctx, item.ProductID.String(), item.UOMID.String(), today.AddDate(0, 0, 1))
+					if err == nil && lastPrice != nil {
+						hpp = *lastPrice
+					}
+				}
+			}
+
+			var existingPrice *entity.ProductPrice
+			var entityID *uuid.UUID
+			var snapshotJSON *string
+
+			ep, err := u.productPriceRepo.FindByPriceListProductAndUOM(ctx, defaultPriceListID.String(), item.ProductID.String(), item.UOMID.String())
+			if err == nil && ep != nil {
+				existingPrice = ep
+				entityID = &ep.ID
+				sn, errSnap := u.fetchSnapshot(ctx, entity.ProposalEntityProductPrice, ep.ID.String())
+				if errSnap == nil {
+					snapshotJSON = sn
+				}
+			}
+
+			if existingPrice != nil && !existingPrice.MarkupPct.IsZero() {
+				markupPct = existingPrice.MarkupPct
+			} else if prod != nil {
+				markupPct = prod.Category.DefaultMarkupPct
+			}
+
+			suggestedPrice := decimal.Zero
+			if hpp.GreaterThan(decimal.Zero) {
+				var rawSuggested decimal.Decimal
+				if markupPct.GreaterThan(decimal.Zero) {
+					rawSuggested = hpp.Add(hpp.Mul(markupPct).Div(decimal.NewFromInt(100)))
+				} else {
+					rawSuggested = hpp
+				}
+				suggestedPrice = applyPriceRounding(rawSuggested)
+			}
+			sellPrice := suggestedPrice
+
+			payloadMap := map[string]interface{}{
+				"price_list_id":   defaultPriceListID,
+				"product_id":     item.ProductID,
+				"uom_id":         item.UOMID,
+				"markup_pct":     markupPct,
+				"hpp":            hpp,
+				"suggested_price": suggestedPrice,
+				"sell_price":     sellPrice,
+			}
+
+			if len(activePriceLists) > 0 && activePriceLists[0].Name != "" {
+				payloadMap["price_list_id_text"] = activePriceLists[0].Name
+			}
+			if prod != nil {
+				payloadMap["product_id_text"] = prod.SKU + " - " + prod.Name
+				if prod.BaseUOM.Name != "" && item.UOMID == prod.BaseUOMID {
+					payloadMap["uom_id_text"] = prod.BaseUOM.Name
+				}
+			}
+
+			payloadBytes, err := json.Marshal(payloadMap)
+			if err != nil {
+				return 0, err
+			}
+
+			pItem := entity.MasterDataProposalItem{
+				SeqNo:        i + 1,
+				EntityID:     entityID,
+				PayloadJSON:  string(payloadBytes),
+				SnapshotJSON: snapshotJSON,
+			}
+			if err := pItem.GenerateID(); err != nil {
+				return 0, err
+			}
+			proposalItems[i] = pItem
+		}
+
+		proposal := &entity.MasterDataProposal{
+			ReferenceNumber: refNum,
+			EntityType:      entity.ProposalEntityProductPrice,
+			ActionType:      entity.ProposalActionCreate,
+			TotalItems:      len(proposalItems),
+			Reason:          "Generate otomatis dari Goods Receipt hari ini dan produk tanpa harga",
+			Status:          entity.ProposalStatusPending,
+			ProposedByID:    userID,
+			Items:           proposalItems,
+		}
+
+		if err := proposal.GenerateID(); err != nil {
+			return 0, err
+		}
+
+		for i := range proposal.Items {
+			proposal.Items[i].ProposalID = proposal.ID
+		}
+
+		if err := u.repo.Create(txCtx, proposal); err != nil {
+			return 0, err
+		}
+
+		proposalCount++
+	}
+
+	if err := u.uow.Commit(txCtx); err != nil {
+		return 0, err
+	}
+
+	return proposalCount, nil
+}
+
+func applyPriceRounding(price decimal.Decimal) decimal.Decimal {
+	if price.IsZero() || price.IsNegative() {
+		return decimal.Zero
+	}
+
+	valFloat, _ := price.Float64()
+	x := math.Round(valFloat/10.0) * 10.0
+	s := fmt.Sprintf("%.0f", x)
+
+	if x >= 1000 && x < 10000 {
+		if len(s) >= 4 && s[1:3] == "00" {
+			var right1 float64
+			fmt.Sscanf(s[len(s)-1:], "%f", &right1)
+			return decimal.NewFromFloat(math.Round(x - right1 - 10))
+		}
+	} else if x >= 10000 && x < 100000 {
+		if len(s) >= 5 && s[2:3] == "0" {
+			var right2 float64
+			fmt.Sscanf(s[len(s)-2:], "%f", &right2)
+			return decimal.NewFromFloat(math.Round(x - right2 - 20))
+		}
+	} else if x >= 100000 && x < 1000000 {
+		if len(s) >= 6 && s[2:3] == "0" {
+			var right3 float64
+			fmt.Sscanf(s[len(s)-3:], "%f", &right3)
+			return decimal.NewFromFloat(math.Round(x - right3 - 150))
+		}
+	} else if x >= 1000000 && x < 10000000 {
+		if len(s) >= 7 && s[2:3] == "0" {
+			var right4 float64
+			fmt.Sscanf(s[len(s)-4:], "%f", &right4)
+			return decimal.NewFromFloat(math.Round(x - right4 - 1500))
+		}
+	}
+
+	return decimal.NewFromFloat(x)
 }

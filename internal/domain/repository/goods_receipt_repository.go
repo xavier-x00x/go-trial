@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"go-trial/internal/domain/entity"
 
@@ -19,4 +20,6 @@ type GoodsReceiptRepository interface {
 	Delete(ctx context.Context, id string) error
 	DeleteItemsByGoodsReceiptID(ctx context.Context, grID string) error
 	GetTotalDraftQtyByPOItemID(ctx context.Context, poItemID string, excludeGRID *string) (decimal.Decimal, error)
+	FindPostedItemsByDate(ctx context.Context, date time.Time) ([]entity.GoodsReceiptItem, error)
+	FindLastPriceBeforeDate(ctx context.Context, productID, uomID string, date time.Time) (*decimal.Decimal, error)
 }

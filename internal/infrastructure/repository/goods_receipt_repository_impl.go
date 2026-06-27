@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"go-trial/internal/domain/entity"
 	domainRepo "go-trial/internal/domain/repository"
@@ -131,4 +132,47 @@ func (r *goodsReceiptRepository) GetTotalDraftQtyByPOItemID(ctx context.Context,
 	}
 
 	return result.Total, nil
+}
+
+func (r *goodsReceiptRepository) FindPostedItemsByDate(ctx context.Context, date time.Time) ([]entity.GoodsReceiptItem, error) {
+	var items []entity.GoodsReceiptItem
+	
+	// Query to find goods receipt items that were received on the given date (comparing only the DATE part)
+	// and the GoodsReceipt is in CONFIRMED status.
+	err := r.db.WithContext(ctx).
+		Preload("GoodsReceipt").
+		Preload("Product").
+		Preload("UOM").
+		Joins("JOIN goods_receipts ON goods_receipts.id = goods_receipt_items.goods_receipt_id").
+		Where("DATE(goods_receipts.receipt_date) = DATE(?)", date).
+		Where("goods_receipts.status = ?", entity.GRStatusConfirmed).
+		Find(&items).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to find posted goods receipt items by date: %w", err)
+	}
+
+	return items, nil
+}
+
+func (r *goodsReceiptRepository) FindLastPriceBeforeDate(ctx context.Context, productID, uomID string, date time.Time) (*decimal.Decimal, error) {
+	var items []entity.GoodsReceiptItem
+	err := r.db.WithContext(ctx).
+		Joins("JOIN goods_receipts ON goods_receipts.id = goods_receipt_items.goods_receipt_id").
+		Where("goods_receipts.status = ?", entity.GRStatusConfirmed).
+		Where("goods_receipt_items.product_id = ? AND goods_receipt_items.uom_id = ?", productID, uomID).
+		Where("DATE(goods_receipts.receipt_date) < DATE(?)", date).
+		Order("goods_receipts.receipt_date DESC, goods_receipts.created_at DESC").
+		Limit(1).
+		Find(&items).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to find last purchase price: %w", err)
+	}
+
+	if len(items) == 0 {
+		return nil, nil
+	}
+
+	return &items[0].NetUnitPrice, nil
 }

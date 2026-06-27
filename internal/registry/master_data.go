@@ -50,6 +50,9 @@ func NewMasterDataRegistry(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *
 		CoaRepo:             repository.NewChartOfAccountRepository(db),
 		TaxRepo:             repository.NewTaxRepository(db),
 		NumberSequenceRepo:  repository.NewNumberSequenceRepository(db),
+		GoodsReceiptRepo:    repository.NewGoodsReceiptRepository(db),
+		PriceListRepo:       repository.NewPriceListRepository(db),
+		InventoryStockRepo:  repository.NewInventoryStockRepository(db),
 		Uow:                 uow,
 	})
 
