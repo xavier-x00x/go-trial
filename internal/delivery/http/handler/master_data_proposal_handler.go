@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -266,4 +267,22 @@ func (h *MasterDataProposalHandler) GetByGroup(c *fiber.Ctx) error {
 		return response.Error(c, fiber.StatusInternalServerError, err.Error())
 	}
 	return response.Success(c, fiber.StatusOK, "Proposals by group retrieved successfully", result)
+}
+
+func (h *MasterDataProposalHandler) Delete(c *fiber.Ctx) error {
+	id := c.Params("id")
+	userID := getUserIDFromContext(c)
+
+	err := h.uc.Delete(c.UserContext(), userID, id)
+	if err != nil {
+		if errors.Is(err, usecase.ErrProposalNotFound) {
+			return response.Error(c, fiber.StatusNotFound, err.Error())
+		}
+		if errors.Is(err, usecase.ErrProposalNotPending) {
+			return response.Error(c, fiber.StatusBadRequest, err.Error())
+		}
+		return response.Error(c, fiber.StatusInternalServerError, err.Error())
+	}
+
+	return response.Success(c, fiber.StatusOK, "Proposal deleted successfully", nil)
 }

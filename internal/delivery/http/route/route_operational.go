@@ -73,8 +73,8 @@ func setupProductPrices(r fiber.Router, p *registry.ProductRegistry) {
 	r = r.Group("/product-prices")
 	r.Post("", h.Create)
 	r.Get("", h.GetAll)
-	r.Get("/:id", h.GetByID)
 	r.Get("/product/:productId", h.GetByProductID)
+	r.Get("/:id", h.GetByID)
 	r.Put("/:id", h.Update)
 	r.Delete("/:id", h.Delete)
 }
@@ -84,8 +84,8 @@ func setupProductUOMs(r fiber.Router, p *registry.ProductRegistry) {
 	r = r.Group("/product-uoms")
 	r.Post("", h.Create)
 	r.Get("", h.GetAll)
-	r.Get("/:id", h.GetByID)
 	r.Get("/product/:productId", h.GetByProductID)
+	r.Get("/:id", h.GetByID)
 	r.Put("/:id", h.Update)
 	r.Delete("/:id", h.Delete)
 }
@@ -133,6 +133,7 @@ func setupMasterDataRoutes(r fiber.Router, reg *registry.Registry) {
 	r.Get("/master-data/group/:groupId", h.GetByGroup)
 	r.Get("/master-data/:id", h.GetByID)
 	r.Put("/master-data/:id", h.Update)
+	r.Delete("/master-data/:id", h.Delete)
 	r.Post("/master-data/:id/review", h.Review)
 	r.Post("/master-data/:id/execute", h.Execute)
 	r.Post("/master-data/bulk/product-supplier", h.BulkLinkProductSupplier)

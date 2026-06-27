@@ -27,6 +27,7 @@ type MasterDataProposalUseCase interface {
 	Review(ctx context.Context, userID string, id string, req dto.ReviewMasterDataProposalRequest) (*dto.MasterDataProposalDetailResponse, error)
 	Update(ctx context.Context, userID string, id string, req dto.UpdateMasterDataProposalRequest) (*dto.MasterDataProposalDetailResponse, error)
 	Execute(ctx context.Context, id string) error
+	Delete(ctx context.Context, userID string, id string) error
 	BulkLinkProductSupplier(ctx context.Context, userID string, req dto.BulkCreateProductSupplierProposalRequest) (*dto.BulkProposalResponse, error)
 }
 
@@ -339,6 +340,33 @@ func (u *masterDataProposalUseCaseImpl) Execute(ctx context.Context, id string) 
 
 	proposal.Status = "EXECUTED"
 	return u.repo.Update(ctx, proposal)
+}
+
+func (uc *masterDataProposalUseCaseImpl) Delete(ctx context.Context, userID string, id string) error {
+	proposal, err := uc.repo.FindByID(ctx, id)
+	if err != nil {
+		return ErrProposalNotFound
+	}
+
+	if proposal.Status != entity.ProposalStatusPending {
+		return ErrProposalNotPending
+	}
+
+	err = uc.uow.Do(ctx, func(ctx context.Context) error {
+		if err := uc.repo.DeleteItemsByProposalID(ctx, id); err != nil {
+			return fmt.Errorf("failed to delete proposal items: %w", err)
+		}
+		if err := uc.repo.Delete(ctx, proposal); err != nil {
+			return fmt.Errorf("failed to delete proposal: %w", err)
+		}
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to delete proposal transaction: %w", err)
+	}
+
+	return nil
 }
 
 func (u *masterDataProposalUseCaseImpl) executeProduct(ctx context.Context, p *entity.MasterDataProposal) error {

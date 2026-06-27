@@ -114,3 +114,7 @@ func (r *masterDataProposalRepository) Update(ctx context.Context, p *entity.Mas
 func (r *masterDataProposalRepository) DeleteItemsByProposalID(ctx context.Context, proposalID string) error {
 	return uow.GetTx(ctx, r.db).Where("proposal_id = ?", proposalID).Delete(&entity.MasterDataProposalItem{}).Error
 }
+
+func (r *masterDataProposalRepository) Delete(ctx context.Context, p *entity.MasterDataProposal) error {
+	return uow.GetTx(ctx, r.db).Delete(p).Error
+}
