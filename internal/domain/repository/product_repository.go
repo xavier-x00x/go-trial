@@ -15,4 +15,5 @@ type ProductRepository interface {
 	FindByCategoryID(ctx context.Context, categoryID string) ([]entity.Product, error)
 	Update(ctx context.Context, p *entity.Product) error
 	Delete(ctx context.Context, id string) error
+	FindWithoutPrices(ctx context.Context) ([]entity.Product, error)
 }

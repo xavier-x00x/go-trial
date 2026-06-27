@@ -292,6 +292,10 @@
     "name": "Eksekusi Master Data"
   },
   {
+    "path": "master-data:generate-prices",
+    "name": "Generate Usulan Harga Jual"
+  },
+  {
     "path": "accounts:view",
     "name": "Melihat Akun"
   },

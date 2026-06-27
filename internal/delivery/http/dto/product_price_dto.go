@@ -8,31 +8,37 @@ import (
 )
 
 type CreateProductPriceRequest struct {
-	PriceListID uuid.UUID       `json:"price_list_id" validate:"required"`
-	ProductID   uuid.UUID       `json:"product_id" validate:"required"`
-	UOMID       uuid.UUID       `json:"uom_id" validate:"required"`
-	MarkupPct   decimal.Decimal `json:"markup_pct"`
-	SellPrice   decimal.Decimal `json:"sell_price" validate:"required"`
+	PriceListID    uuid.UUID       `json:"price_list_id" validate:"required"`
+	ProductID      uuid.UUID       `json:"product_id" validate:"required"`
+	UOMID          uuid.UUID       `json:"uom_id" validate:"required"`
+	MarkupPct      decimal.Decimal `json:"markup_pct"`
+	HPP            decimal.Decimal `json:"hpp"`
+	SuggestedPrice decimal.Decimal `json:"suggested_price"`
+	SellPrice      decimal.Decimal `json:"sell_price" validate:"required"`
 }
 
 type UpdateProductPriceRequest struct {
-	PriceListID *uuid.UUID       `json:"price_list_id"`
-	ProductID   *uuid.UUID       `json:"product_id"`
-	UOMID       *uuid.UUID       `json:"uom_id"`
-	MarkupPct   *decimal.Decimal `json:"markup_pct"`
-	SellPrice   *decimal.Decimal `json:"sell_price"`
+	PriceListID    *uuid.UUID       `json:"price_list_id"`
+	ProductID      *uuid.UUID       `json:"product_id"`
+	UOMID          *uuid.UUID       `json:"uom_id"`
+	MarkupPct      *decimal.Decimal `json:"markup_pct"`
+	HPP            *decimal.Decimal `json:"hpp"`
+	SuggestedPrice *decimal.Decimal `json:"suggested_price"`
+	SellPrice      *decimal.Decimal `json:"sell_price"`
 }
 
 type ProductPriceResponse struct {
-	ID          uuid.UUID          `json:"id"`
-	PriceListID uuid.UUID          `json:"price_list_id"`
-	PriceList   *PriceListResponse `json:"price_list,omitempty"`
-	ProductID   uuid.UUID          `json:"product_id"`
-	Product     *ProductResponse   `json:"product,omitempty"`
-	UOMID       uuid.UUID          `json:"uom_id"`
-	UOM         *UOMResponse       `json:"uom,omitempty"`
-	MarkupPct   decimal.Decimal    `json:"markup_pct"`
-	SellPrice   decimal.Decimal    `json:"sell_price"`
-	CreatedAt   time.Time          `json:"created_at"`
-	UpdatedAt   time.Time          `json:"updated_at"`
+	ID             uuid.UUID          `json:"id"`
+	PriceListID    uuid.UUID          `json:"price_list_id"`
+	PriceList      *PriceListResponse `json:"price_list,omitempty"`
+	ProductID      uuid.UUID          `json:"product_id"`
+	Product        *ProductResponse   `json:"product,omitempty"`
+	UOMID          uuid.UUID          `json:"uom_id"`
+	UOM            *UOMResponse       `json:"uom,omitempty"`
+	MarkupPct      decimal.Decimal    `json:"markup_pct"`
+	HPP            decimal.Decimal    `json:"hpp,omitempty"`
+	SuggestedPrice decimal.Decimal    `json:"suggested_price,omitempty"`
+	SellPrice      decimal.Decimal    `json:"sell_price"`
+	CreatedAt      time.Time          `json:"created_at"`
+	UpdatedAt      time.Time          `json:"updated_at"`
 }

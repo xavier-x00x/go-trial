@@ -137,6 +137,7 @@ func setupMasterDataRoutes(r fiber.Router, reg *registry.Registry) {
 	r.Post("/master-data/:id/review", h.Review)
 	r.Post("/master-data/:id/execute", h.Execute)
 	r.Post("/master-data/bulk/product-supplier", h.BulkLinkProductSupplier)
+	r.Post("/master-data/generate-prices", check("master-data:generate-prices"), h.GeneratePricesFromGR)
 
 	setupPlanningRoutes(r, reg)
 	setupPurchaseOrderRoutes(r, reg)

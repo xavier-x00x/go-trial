@@ -103,3 +103,19 @@ func (r *productRepository) Delete(ctx context.Context, id string) error {
 	}
 	return r.db.WithContext(ctx).Model(&product).Updates(updates).Error
 }
+
+func (r *productRepository) FindWithoutPrices(ctx context.Context) ([]entity.Product, error) {
+	var products []entity.Product
+	err := r.db.WithContext(ctx).
+		Preload("Category").
+		Preload("BaseUOM").
+		Preload("Tax").
+		Joins("LEFT JOIN product_prices ON product_prices.product_id = products.id").
+		Where("product_prices.id IS NULL").
+		Where("products.deleted_at IS NULL").
+		Find(&products).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to find products without prices: %w", err)
+	}
+	return products, nil
+}

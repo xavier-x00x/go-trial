@@ -48,6 +48,18 @@ func (r *productPriceRepository) FindByPriceListAndProduct(ctx context.Context, 
 	return &pp, nil
 }
 
+func (r *productPriceRepository) FindByPriceListProductAndUOM(ctx context.Context, priceListID, productID, uomID string) (*entity.ProductPrice, error) {
+	var pp entity.ProductPrice
+	err := r.db.WithContext(ctx).Where("price_list_id = ? AND product_id = ? AND uom_id = ?", priceListID, productID, uomID).First(&pp).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to find product price: %w", err)
+	}
+	return &pp, nil
+}
+
 func (r *productPriceRepository) FindByProductID(ctx context.Context, productID string) ([]entity.ProductPrice, error) {
 	var pps []entity.ProductPrice
 	err := r.db.WithContext(ctx).Preload("PriceList").Preload("UOM").Where("product_id = ?", productID).Find(&pps).Error
@@ -81,4 +93,15 @@ func (r *productPriceRepository) Update(ctx context.Context, pp *entity.ProductP
 
 func (r *productPriceRepository) Delete(ctx context.Context, id string) error {
 	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&entity.ProductPrice{}).Error
+}
+
+func (r *productPriceRepository) ExistsByProductIDAndUOMID(ctx context.Context, productID, uomID string) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&entity.ProductPrice{}).
+		Where("product_id = ? AND uom_id = ?", productID, uomID).
+		Count(&count).Error
+	if err != nil {
+		return false, fmt.Errorf("failed to check product price existence: %w", err)
+	}
+	return count > 0, nil
 }

@@ -15,6 +15,7 @@ import (
 	"go-trial/pkg/validator"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 )
 
 type MasterDataProposalHandler struct {
@@ -285,4 +286,25 @@ func (h *MasterDataProposalHandler) Delete(c *fiber.Ctx) error {
 	}
 
 	return response.Success(c, fiber.StatusOK, "Proposal deleted successfully", nil)
+}
+
+func (h *MasterDataProposalHandler) GeneratePricesFromGR(c *fiber.Ctx) error {
+	userIDStr := getUserIDFromContext(c)
+	if userIDStr == "" {
+		return response.Error(c, fiber.StatusUnauthorized, "Unauthorized")
+	}
+
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		return response.Error(c, fiber.StatusBadRequest, "Invalid user ID")
+	}
+
+	count, err := h.uc.GenerateProductPricesFromTodayGR(c.UserContext(), userID)
+	if err != nil {
+		return response.Error(c, fiber.StatusInternalServerError, err.Error())
+	}
+
+	return response.Success(c, fiber.StatusOK, fmt.Sprintf("Successfully generated %d price proposal documents from today's Goods Receipts", count), map[string]interface{}{
+		"proposals_generated": count,
+	})
 }
