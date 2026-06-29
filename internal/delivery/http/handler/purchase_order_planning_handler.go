@@ -2,6 +2,7 @@ package handler
 
 import (
 	"go-trial/internal/delivery/http/dto"
+	"go-trial/internal/query/service"
 	"go-trial/internal/usecase"
 	"go-trial/pkg/response"
 	"go-trial/pkg/validator"
@@ -11,11 +12,12 @@ import (
 
 type PurchaseOrderPlanningHandler struct {
 	uc usecase.PurchaseOrderPlanningUseCase
+	qs *service.PurchaseOrderPlanningQueryService
 	v  *validator.Validator
 }
 
-func NewPurchaseOrderPlanningHandler(uc usecase.PurchaseOrderPlanningUseCase, v *validator.Validator) *PurchaseOrderPlanningHandler {
-	return &PurchaseOrderPlanningHandler{uc: uc, v: v}
+func NewPurchaseOrderPlanningHandler(uc usecase.PurchaseOrderPlanningUseCase, qs *service.PurchaseOrderPlanningQueryService, v *validator.Validator) *PurchaseOrderPlanningHandler {
+	return &PurchaseOrderPlanningHandler{uc: uc, qs: qs, v: v}
 }
 
 func (h *PurchaseOrderPlanningHandler) Calculate(c *fiber.Ctx) error {
@@ -38,7 +40,7 @@ func (h *PurchaseOrderPlanningHandler) GetPending(c *fiber.Ctx) error {
 		return response.Error(c, fiber.StatusBadRequest, "store_id is required")
 	}
 	
-	result, err := h.uc.GetPending(c.UserContext(), storeID)
+	result, err := h.qs.GetPending(c.UserContext(), storeID)
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, err.Error())
 	}
@@ -50,7 +52,7 @@ func (h *PurchaseOrderPlanningHandler) GetAll(c *fiber.Ctx) error {
 	storeID := c.Query("store_id")
 	status := c.Query("status")
 	
-	result, err := h.uc.GetAll(c.UserContext(), storeID, status)
+	result, err := h.qs.GetAll(c.UserContext(), storeID, status)
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, err.Error())
 	}
@@ -61,9 +63,12 @@ func (h *PurchaseOrderPlanningHandler) GetAll(c *fiber.Ctx) error {
 func (h *PurchaseOrderPlanningHandler) GetByID(c *fiber.Ctx) error {
 	id := c.Params("id")
 	
-	result, err := h.uc.GetByID(c.UserContext(), id)
+	result, err := h.qs.GetByID(c.UserContext(), id)
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, err.Error())
+	}
+	if result == nil {
+		return response.Error(c, fiber.StatusNotFound, "Planning not found")
 	}
 	
 	return response.Success(c, fiber.StatusOK, "Planning detail retrieved", result)

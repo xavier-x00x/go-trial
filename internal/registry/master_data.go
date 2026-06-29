@@ -89,11 +89,13 @@ func NewMasterDataRegistry(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *
 	})
 
 	proposalQueryService := service.NewMasterDataProposalQueryService(db)
+	poQueryService := service.NewPurchaseOrderQueryService(db)
+	poPlanningQueryService := service.NewPurchaseOrderPlanningQueryService(db)
 
 	return &MasterDataRegistry{
 		ProposalHandler:         handler.NewMasterDataProposalHandler(proposalUseCase, proposalQueryService, v),
-		PlanningHandler:       handler.NewPurchaseOrderPlanningHandler(planningUseCase, v),
-		PurchaseOrderHandler: handler.NewPurchaseOrderHandler(poUseCase, v),
+		PlanningHandler:       handler.NewPurchaseOrderPlanningHandler(planningUseCase, poPlanningQueryService, v),
+		PurchaseOrderHandler: handler.NewPurchaseOrderHandler(poUseCase, poQueryService, v),
 		GoodsReceiptHandler:  handler.NewGoodsReceiptHandler(grUseCase, v),
 	}
 }

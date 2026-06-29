@@ -4,6 +4,8 @@ import (
 	"strconv"
 
 	"go-trial/internal/delivery/http/dto"
+	"go-trial/internal/query/params"
+	"go-trial/internal/query/service"
 	"go-trial/internal/usecase"
 	"go-trial/pkg/jwt"
 	"go-trial/pkg/response"
@@ -14,11 +16,12 @@ import (
 
 type PurchaseOrderHandler struct {
 	uc usecase.PurchaseOrderUseCase
+	qs *service.PurchaseOrderQueryService
 	v  *validator.Validator
 }
 
-func NewPurchaseOrderHandler(uc usecase.PurchaseOrderUseCase, v *validator.Validator) *PurchaseOrderHandler {
-	return &PurchaseOrderHandler{uc: uc, v: v}
+func NewPurchaseOrderHandler(uc usecase.PurchaseOrderUseCase, qs *service.PurchaseOrderQueryService, v *validator.Validator) *PurchaseOrderHandler {
+	return &PurchaseOrderHandler{uc: uc, qs: qs, v: v}
 }
 
 func getUserIDFromPOContext(c *fiber.Ctx) string {
@@ -71,9 +74,12 @@ func (h *PurchaseOrderHandler) CreateFromPlanning(c *fiber.Ctx) error {
 
 func (h *PurchaseOrderHandler) GetByID(c *fiber.Ctx) error {
 	id := c.Params("id")
-	result, err := h.uc.GetByID(c.UserContext(), id)
+	result, err := h.qs.GetByID(c.UserContext(), id)
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, err.Error())
+	}
+	if result == nil {
+		return response.Error(c, fiber.StatusNotFound, "Purchase order not found")
 	}
 	return response.Success(c, fiber.StatusOK, "Purchase order retrieved successfully", result)
 }
@@ -81,7 +87,7 @@ func (h *PurchaseOrderHandler) GetByID(c *fiber.Ctx) error {
 func (h *PurchaseOrderHandler) GetByStoreID(c *fiber.Ctx) error {
 	storeID := c.Params("storeId")
 	status := c.Query("status")
-	result, err := h.uc.GetByStoreID(c.UserContext(), storeID, status)
+	result, err := h.qs.GetByStoreID(c.UserContext(), storeID, status)
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, err.Error())
 	}
@@ -90,7 +96,7 @@ func (h *PurchaseOrderHandler) GetByStoreID(c *fiber.Ctx) error {
 
 func (h *PurchaseOrderHandler) GetPendingByStoreID(c *fiber.Ctx) error {
 	storeID := c.Params("storeId")
-	result, err := h.uc.GetPendingByStoreID(c.UserContext(), storeID)
+	result, err := h.qs.GetPendingByStoreID(c.UserContext(), storeID)
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, err.Error())
 	}
@@ -170,7 +176,7 @@ func (h *PurchaseOrderHandler) GetAllWithPagination(c *fiber.Ctx) error {
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	limit, _ := strconv.Atoi(c.Query("limit", "10"))
 
-	metaRequest := &dto.MetaRequest{
+	metaRequest := &params.MetaRequest{
 		Page:        page,
 		Limit:       limit,
 		Search:      c.Query("search", ""),
@@ -179,7 +185,7 @@ func (h *PurchaseOrderHandler) GetAllWithPagination(c *fiber.Ctx) error {
 		Conditions:  parseConditions(c),
 	}
 
-	data, meta, err := h.uc.GetAllWithPagination(c.UserContext(), metaRequest)
+	data, meta, err := h.qs.GetListPagination(c.UserContext(), metaRequest)
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, err.Error())
 	}
