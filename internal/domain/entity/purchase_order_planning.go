@@ -54,8 +54,10 @@ type PurchaseOrderPlanning struct {
 	LeadTimeDays       int             `gorm:"not null" json:"lead_time_days"`                          // Estimasi waktu pengiriman (hari)
 	LeadTimeDemand     decimal.Decimal `gorm:"type:decimal(15,4);not null" json:"lead_time_demand"`     // Permintaan selama lead time (ADS × LeadTimeDays)
 
-	// ── Hasil & Keputusan ────────────────────────────────────────────────
 	RecommendedOrderQty decimal.Decimal `gorm:"type:decimal(15,4);not null" json:"recommended_order_qty"`        // Qty pesanan yang disarankan (MaxStock - CurrentStock)
+	OrderQty            decimal.Decimal `gorm:"type:decimal(15,4);not null;default:0" json:"order_qty"`          // Qty pesanan real yang bisa diedit user
+	IsManualSupplier    bool            `gorm:"default:false" json:"is_manual_supplier"`                         // Flag penanda supplier direvisi manual
+	IsSelected          bool            `gorm:"default:false" json:"is_selected"`                                // Flag penanda baris dipilih oleh user
 	CalculatedDate      time.Time       `gorm:"not null" json:"calculated_date"`                                 // Waktu kalkulasi dilakukan oleh Cron Job
 	Status              string          `gorm:"type:varchar(10);not null;default:'PENDING';index" json:"status"` // PENDING, APPROVED, IGNORED
 	ProcessedByID       *uuid.UUID      `gorm:"type:char(36);index" json:"processed_by_id"`                      // User yang mengambil keputusan

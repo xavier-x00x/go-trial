@@ -86,11 +86,11 @@ func (r *storeProductAssortmentRepository) FindForPlanning(ctx context.Context, 
 			spa.average_daily_sales, 
 			spa.safety_stock_qty, 
 			spa.max_stock_qty,
-			COALESCE(SUM(is.quantity - is.reserved_qty), 0) as current_stock
+			COALESCE(SUM(inv.quantity - inv.reserved_qty), 0) as current_stock
 		`).
 		Joins("JOIN product_suppliers ps ON ps.product_id = spa.product_id").
-		Joins("JOIN warehouses w ON w.store_id = spa.store_id AND w.is_active = true").
-		Joins("LEFT JOIN inventory_stocks is ON is.warehouse_id = w.id AND is.product_id = spa.product_id").
+		Joins("JOIN warehouse w ON w.store_id = spa.store_id AND w.is_active = true").
+		Joins("LEFT JOIN inventory_stocks inv ON inv.warehouse_id = w.id AND inv.product_id = spa.product_id").
 		Where("spa.store_id = ?", storeID).
 		Group("spa.store_id, spa.product_id, ps.id, ps.default_lead_time_days, spa.average_daily_sales, spa.safety_stock_qty, spa.max_stock_qty").
 		Scan(&results).Error

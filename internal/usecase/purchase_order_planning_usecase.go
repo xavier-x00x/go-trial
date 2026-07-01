@@ -26,6 +26,8 @@ type PurchaseOrderPlanningUseCase interface {
 	GetByID(ctx context.Context, id string) (*dto.PurchaseOrderPlanningResponse, error)
 	ApprovePlanning(ctx context.Context, req dto.ApprovePlanningRequest) ([]dto.PurchaseOrderPlanningResponse, error)
 	IgnorePlanning(ctx context.Context, ids []string) error
+	Update(ctx context.Context, id string, req dto.UpdatePlanningRequest) error
+	BulkSelect(ctx context.Context, req dto.BulkSelectPlanningRequest) error
 }
 
 type PurchaseOrderPlanningConfig struct {
@@ -37,7 +39,7 @@ type PurchaseOrderPlanningConfig struct {
 		Commit(ctx context.Context) error
 		Rollback(ctx context.Context) error
 	}
-	Config                     struct {
+	Config struct {
 		ZScore            float64 // Service level, default 1.65 for 95%
 		SalesLookbackDays int     // Days to look back for sales calculation (unused currently)
 		MinLeadTime       int     // Minimum lead time in days (unused currently)
@@ -54,10 +56,10 @@ type purchaseOrderPlanningUseCaseImpl struct {
 		Commit(ctx context.Context) error
 		Rollback(ctx context.Context) error
 	}
-	zScore                     float64
-	salesLookbackDays          int
-	minLeadTime                int
-	defaultLeadTime            int
+	zScore            float64
+	salesLookbackDays int
+	minLeadTime       int
+	defaultLeadTime   int
 }
 
 func NewPurchaseOrderPlanningUseCase(cfg PurchaseOrderPlanningConfig) PurchaseOrderPlanningUseCase {
@@ -166,20 +168,21 @@ func (u *purchaseOrderPlanningUseCaseImpl) Calculate(ctx context.Context, storeI
 
 		if currentStock <= rop {
 			planning := entity.PurchaseOrderPlanning{
-				StoreID:              storeUUID,
-				ProductID:            pd.ProductID,
+				StoreID:             storeUUID,
+				ProductID:           pd.ProductID,
 				ProductSupplierID:   pd.ProductSupplierID,
-				CurrentStock:         decimal.NewFromFloat(currentStock),
-				SafetyStock:          decimal.NewFromFloat(staticSafetyStock),
-				DynamicSafetyStock:   decimal.NewFromFloat(dynamicSafetyStock),
-				MaxStockQty:          decimal.NewFromFloat(maxStockQty),
-				ReorderPoint:         decimal.NewFromFloat(rop),
-				AverageDailySales:    decimal.NewFromFloat(avgDailySales),
-				LeadTimeDays:         leadTime,
+				CurrentStock:        decimal.NewFromFloat(currentStock),
+				SafetyStock:         decimal.NewFromFloat(staticSafetyStock),
+				DynamicSafetyStock:  decimal.NewFromFloat(dynamicSafetyStock),
+				MaxStockQty:         decimal.NewFromFloat(maxStockQty),
+				ReorderPoint:        decimal.NewFromFloat(rop),
+				AverageDailySales:   decimal.NewFromFloat(avgDailySales),
+				LeadTimeDays:        leadTime,
 				LeadTimeDemand:      decimal.NewFromFloat(leadTimeDemand),
 				Status:              entity.PlanningStatusPending,
-				RecommendedOrderQty:  decimal.NewFromFloat(recommendedOrderQty),
-				CalculatedDate:       calcDate,
+				RecommendedOrderQty: decimal.NewFromFloat(recommendedOrderQty),
+				OrderQty:            decimal.NewFromFloat(recommendedOrderQty),
+				CalculatedDate:      calcDate,
 			}
 			planning.GenerateID()
 			plannings = append(plannings, planning)
@@ -267,7 +270,14 @@ func (u *purchaseOrderPlanningUseCaseImpl) ApprovePlanning(ctx context.Context, 
 		plan.ProcessedByID = &req.ProcessedByID
 
 		if i < len(req.OrderQuantities) && req.OrderQuantities[i] > 0 {
-			plan.RecommendedOrderQty = decimal.NewFromFloat(req.OrderQuantities[i])
+			plan.OrderQty = decimal.NewFromFloat(req.OrderQuantities[i])
+		}
+
+		if i < len(req.ProductSupplierIDs) && req.ProductSupplierIDs[i] != "" {
+			if psID, err := uuid.Parse(req.ProductSupplierIDs[i]); err == nil && plan.ProductSupplierID != psID {
+				plan.ProductSupplierID = psID
+				plan.IsManualSupplier = true
+			}
 		}
 
 		if err := u.repo.Update(ctx, plan); err != nil {
@@ -297,6 +307,44 @@ func (u *purchaseOrderPlanningUseCaseImpl) IgnorePlanning(ctx context.Context, i
 	return nil
 }
 
+func (u *purchaseOrderPlanningUseCaseImpl) Update(ctx context.Context, id string, req dto.UpdatePlanningRequest) error {
+	plan, err := u.repo.FindByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if plan == nil {
+		return errors.New("planning not found")
+	}
+
+	if req.OrderQty != nil {
+		plan.OrderQty = decimal.NewFromFloat(*req.OrderQty)
+	}
+
+	if req.ProductSupplierID != nil && *req.ProductSupplierID != "" {
+		if psID, err := uuid.Parse(*req.ProductSupplierID); err == nil && plan.ProductSupplierID != psID {
+			plan.ProductSupplierID = psID
+			plan.IsManualSupplier = true
+		}
+	}
+
+	if req.IsSelected != nil {
+		plan.IsSelected = *req.IsSelected
+	}
+
+	return u.repo.Update(ctx, plan)
+}
+
+func (u *purchaseOrderPlanningUseCaseImpl) BulkSelect(ctx context.Context, req dto.BulkSelectPlanningRequest) error {
+	for _, id := range req.IDs {
+		plan, err := u.repo.FindByID(ctx, id.String())
+		if err == nil && plan != nil {
+			plan.IsSelected = req.IsSelected
+			u.repo.Update(ctx, plan)
+		}
+	}
+	return nil
+}
+
 func toPlanningResponses(plans []entity.PurchaseOrderPlanning) []dto.PurchaseOrderPlanningResponse {
 	responses := make([]dto.PurchaseOrderPlanningResponse, len(plans))
 	for i, plan := range plans {
@@ -320,6 +368,9 @@ func toPlanningResponse(plan *entity.PurchaseOrderPlanning) dto.PurchaseOrderPla
 		LeadTimeDemand:      plan.LeadTimeDemand.InexactFloat64(),
 		Status:              plan.Status,
 		RecommendedOrderQty: plan.RecommendedOrderQty.InexactFloat64(),
+		OrderQty:            plan.OrderQty.InexactFloat64(),
+		IsManualSupplier:    plan.IsManualSupplier,
+		IsSelected:          plan.IsSelected,
 		CalculatedDate:      plan.CalculatedDate,
 		ProcessedDate:       plan.ProcessedDate,
 		ProcessedByID:       plan.ProcessedByID,

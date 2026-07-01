@@ -50,16 +50,34 @@ func convertPurchaseOrderToMap(po *entity.PurchaseOrder) []map[string]interface{
 		supplierPhone = *po.Supplier.PhoneNumber
 	}
 
+	email := ""
+	if po.Supplier.Email != nil {
+		email = *po.Supplier.Email
+	}
+
 	storeName := po.Store.Name
+	storeAddress := ""
+	if po.Store.Address != nil {
+		storeAddress = *po.Store.Address
+	} else if po.StoreAddress != nil {
+		storeAddress = *po.StoreAddress
+	}
 
 	approvedBy := ""
 	if po.ApprovedBy != nil {
 		approvedBy = po.ApprovedBy.Name
+	} else if po.ApprovedByName != nil {
+		approvedBy = *po.ApprovedByName
 	}
 
 	notes := ""
 	if po.Notes != nil {
 		notes = *po.Notes
+	}
+	
+	expectedDelivery := ""
+	if po.ExpectedDelivery != nil {
+		expectedDelivery = po.ExpectedDelivery.Format("02 January 2006")
 	}
 
 	for i, item := range po.Items {
@@ -69,7 +87,10 @@ func convertPurchaseOrderToMap(po *entity.PurchaseOrder) []map[string]interface{
 			"supplier":      supplierName,
 			"alamat":        supplierAddr,
 			"telp":          supplierPhone,
+			"email":         email,
 			"store":         storeName,
+			"store_address": storeAddress,
+			"expected_delivery": expectedDelivery,
 			"namaItem":      item.Product.Name,
 			"qty":           item.QtyOrdered.IntPart(),
 			"harga":         item.UnitPrice.IntPart(),
@@ -95,7 +116,10 @@ func convertPurchaseOrderToMap(po *entity.PurchaseOrder) []map[string]interface{
 			"supplier":      supplierName,
 			"alamat":        supplierAddr,
 			"telp":          supplierPhone,
+			"email":         email,
 			"store":         storeName,
+			"store_address": storeAddress,
+			"expected_delivery": expectedDelivery,
 			"namaItem":      "",
 			"qty":           0,
 			"harga":         0,

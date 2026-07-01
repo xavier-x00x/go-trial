@@ -26,7 +26,7 @@ func (s *PurchaseOrderPlanningQueryService) getBaseSelectAndJoins(ctx context.Co
 			p.product_id,
 			p.product_supplier_id,
 			pr.sku as product_sku,
-			pr.name as product_name,
+			CONCAT_WS(' - ', pr.name, NULLIF(pr.variant, '')) as product_name,
 			sp.code as supplier_code,
 			sp.name as supplier_name,
 			p.current_stock,
@@ -40,19 +40,29 @@ func (s *PurchaseOrderPlanningQueryService) getBaseSelectAndJoins(ctx context.Co
 			p.recommended_order_qty,
 			p.calculated_date,
 			p.processed_date,
-			p.processed_by_id
+			p.processed_by_id,
+			p.order_qty,
+			p.is_manual_supplier,
+			p.is_selected
 		`).
 		Joins("LEFT JOIN products pr ON pr.id = p.product_id").
 		Joins("LEFT JOIN product_suppliers ps ON ps.id = p.product_supplier_id").
 		Joins("LEFT JOIN suppliers sp ON sp.id = ps.supplier_id")
 }
 
-func (s *PurchaseOrderPlanningQueryService) GetPending(ctx context.Context, storeID string) ([]row.PurchaseOrderPlanningRow, error) {
+func (s *PurchaseOrderPlanningQueryService) GetPending(ctx context.Context, storeID string, search string) ([]row.PurchaseOrderPlanningRow, error) {
 	var rows []row.PurchaseOrderPlanningRow
-	err := s.getBaseSelectAndJoins(ctx).
-		Where("p.deleted_at IS NULL AND p.store_id = ? AND p.status = ?", storeID, entity.PlanningStatusPending).
-		Order("p.calculated_date DESC").
+	
+	query := s.getBaseSelectAndJoins(ctx).
+		Where("p.deleted_at IS NULL AND p.store_id = ? AND p.status = ?", storeID, entity.PlanningStatusPending)
+
+	if search != "" {
+		query = query.Where("pr.name LIKE ? OR pr.sku LIKE ? OR sp.name LIKE ?", "%"+search+"%", "%"+search+"%", "%"+search+"%")
+	}
+
+	err := query.Order("sp.name ASC, pr.sku ASC").
 		Find(&rows).Error
+		
 	return rows, err
 }
 
@@ -65,7 +75,7 @@ func (s *PurchaseOrderPlanningQueryService) GetAll(ctx context.Context, storeID 
 		query = query.Where("p.status = ?", status)
 	}
 
-	err := query.Order("p.calculated_date DESC").Find(&rows).Error
+	err := query.Order("sp.name ASC, pr.sku ASC").Find(&rows).Error
 	return rows, err
 }
 

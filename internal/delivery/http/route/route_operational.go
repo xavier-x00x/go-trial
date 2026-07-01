@@ -40,6 +40,8 @@ func setupProducts(r fiber.Router, p *registry.ProductRegistry) {
 	r.Post("", check("products:create"), h.Create)
 	r.Get("", check("products:view"), h.GetAll)
 	r.Get("/pagination", check("products:view"), h.GetAllWithPagination)
+	r.Get("/by-supplier", check("products:view"), h.GetProductsBySupplier)
+	r.Get("/by-supplier/pagination", check("products:view"), h.GetProductsBySupplierWithPagination)
 	r.Get("/:id", check("products:view"), h.GetByID)
 	r.Get("/:id/suppliers", check("products:view"), h.GetProductSuppliers)
 	r.Put("/:id", check("products:update"), h.Update)
@@ -151,8 +153,10 @@ func setupPlanningRoutes(r fiber.Router, reg *registry.Registry) {
 	r.Get("/pending", h.GetPending)
 	r.Get("", h.GetAll)
 	r.Get("/:id", h.GetByID)
+	r.Put("/:id", h.Update)
 	r.Post("/approve", h.Approve)
 	r.Post("/ignore", h.Ignore)
+	r.Post("/bulk-select", h.BulkSelect)
 }
 
 func setupPurchaseOrderRoutes(r fiber.Router, reg *registry.Registry) {
@@ -161,6 +165,8 @@ func setupPurchaseOrderRoutes(r fiber.Router, reg *registry.Registry) {
 	r.Post("", h.Create)
 	r.Post("/from-planning", h.CreateFromPlanning)
 	r.Post("/bulk-from-approved", h.BulkCreateFromApprovedPlanning)
+	r.Post("/batch-submit", h.BatchSubmit)
+	r.Post("/batch-approve", h.BatchApprove)
 	r.Get("/pagination", h.GetAllWithPagination)
 	r.Get("/store/:storeId", h.GetByStoreID)
 	r.Get("/store/:storeId/pending", h.GetPendingByStoreID)

@@ -67,13 +67,14 @@ func NewMasterDataRegistry(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *
 		Repo:                repository.NewPurchaseOrderRepository(db),
 		PlanningRepo:        repository.NewPurchaseOrderPlanningRepository(db),
 		ProductSupplierRepo: repository.NewProductSupplierRepository(db),
-		ProductRepo:        repository.NewProductRepository(db),
-		SupplierRepo:      repository.NewSupplierRepository(db),
-		StoreRepo:         repository.NewStoreRepository(db),
-		WarehouseRepo:    repository.NewWarehouseRepository(db),
-		NumberSequenceRepo: repository.NewNumberSequenceRepository(db),
+		ProductRepo:         repository.NewProductRepository(db),
+		SupplierRepo:        repository.NewSupplierRepository(db),
+		StoreRepo:           repository.NewStoreRepository(db),
+		WarehouseRepo:       repository.NewWarehouseRepository(db),
+		UserRepo:            repository.NewUserRepository(db),
+		NumberSequenceRepo:  repository.NewNumberSequenceRepository(db),
 		NotificationService: notificationService,
-		Uow:                uow,
+		Uow:                 uow,
 	})
 
 	grUseCase := usecase.NewGoodsReceiptUseCase(usecase.GoodsReceiptConfig{

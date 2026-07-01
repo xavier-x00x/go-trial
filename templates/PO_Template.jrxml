@@ -17,6 +17,8 @@
 	<field name="telp" class="java.lang.String"/>
 	<field name="email" class="java.lang.String"/>
 	<field name="store" class="java.lang.String"/>
+	<field name="store_address" class="java.lang.String"/>
+	<field name="expected_delivery" class="java.lang.String"/>
 	<field name="namaItem" class="java.lang.String"/>
 	<field name="qty" class="java.math.BigDecimal"/>
 	<field name="harga" class="java.math.BigDecimal"/>
@@ -34,116 +36,133 @@
 		<variableExpression><![CDATA[$F{namaItem}]]></variableExpression>
 	</variable>
 	<title>
-		<band height="168">
+		<band height="215">
+			<!-- Company Info (Top Left) -->
 			<textField>
-				<reportElement x="0" y="0" width="535" height="20" uuid="b40f0609-6817-40d1-8c69-b365e780b75b"/>
-				<textElement textAlignment="Center">
+				<reportElement x="0" y="0" width="267" height="14" uuid="95e7b15b-a92f-45b2-bc0f-2a810af60296"/>
+				<textElement>
+					<font fontName="Helvetica" size="11" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{COMPANY_NAME}]]></textFieldExpression>
+			</textField>
+			<textField textAdjust="StretchHeight">
+				<reportElement x="0" y="14" width="267" height="24" uuid="19453b61-5a4a-4dbe-af46-ae12f913e47f"/>
+				<textElement>
+					<font fontName="Helvetica" size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{store_address} != null ? $F{store_address} : ""]]></textFieldExpression>
+			</textField>
+
+			<!-- Title (Top Right) -->
+			<textField>
+				<reportElement x="267" y="0" width="268" height="20" uuid="b40f0609-6817-40d1-8c69-b365e780b75b"/>
+				<textElement textAlignment="Right">
 					<font fontName="Helvetica" size="14" isBold="true"/>
 				</textElement>
 				<textFieldExpression><![CDATA["PURCHASE ORDER"]]></textFieldExpression>
 			</textField>
+
+			<!-- PO Details -->
 			<textField>
-				<reportElement x="0" y="25" width="80" height="12" uuid="35710ee6-f6e8-462d-abe7-9cb8ad43ecf7"/>
-				<textElement>
-					<font fontName="Helvetica" size="9"/>
-				</textElement>
+				<reportElement x="0" y="55" width="80" height="12" uuid="35710ee6-f6e8-462d-abe7-9cb8ad43ecf7"/>
+				<textElement><font fontName="Helvetica" size="9"/></textElement>
 				<textFieldExpression><![CDATA["No. PO"]]></textFieldExpression>
 			</textField>
 			<textField>
-				<reportElement x="80" y="25" width="10" height="12" uuid="f1eb3370-958a-4790-aee4-6e33f7d14c1a"/>
-				<textElement>
-					<font fontName="Helvetica" size="9"/>
-				</textElement>
+				<reportElement x="80" y="55" width="10" height="12" uuid="f1eb3370-958a-4790-aee4-6e33f7d14c1a"/>
+				<textElement><font fontName="Helvetica" size="9"/></textElement>
 				<textFieldExpression><![CDATA[":"]]></textFieldExpression>
 			</textField>
 			<textField>
-				<reportElement x="90" y="25" width="445" height="12" uuid="70e2a850-82f8-4be9-8c8c-c2ec074502a9"/>
-				<textElement>
-					<font fontName="Helvetica" size="9"/>
-				</textElement>
+				<reportElement x="90" y="55" width="445" height="12" uuid="70e2a850-82f8-4be9-8c8c-c2ec074502a9"/>
+				<textElement><font fontName="Helvetica" size="9"/></textElement>
 				<textFieldExpression><![CDATA[$F{no}]]></textFieldExpression>
 			</textField>
+
 			<textField>
-				<reportElement x="0" y="40" width="80" height="12" uuid="b1165e81-9ff1-4e38-8c08-c7641cced8f5"/>
-				<textElement>
-					<font fontName="Helvetica" size="9"/>
-				</textElement>
+				<reportElement x="0" y="70" width="80" height="12" uuid="b1165e81-9ff1-4e38-8c08-c7641cced8f5"/>
+				<textElement><font fontName="Helvetica" size="9"/></textElement>
 				<textFieldExpression><![CDATA["Tanggal"]]></textFieldExpression>
 			</textField>
 			<textField>
-				<reportElement x="80" y="40" width="10" height="12" uuid="7dc2394d-3633-4e7a-8858-58db818abec9"/>
-				<textElement>
-					<font fontName="Helvetica" size="9"/>
-				</textElement>
+				<reportElement x="80" y="70" width="10" height="12" uuid="7dc2394d-3633-4e7a-8858-58db818abec9"/>
+				<textElement><font fontName="Helvetica" size="9"/></textElement>
 				<textFieldExpression><![CDATA[":"]]></textFieldExpression>
 			</textField>
 			<textField>
-				<reportElement x="90" y="40" width="445" height="12" uuid="1b43ce27-3b84-4f14-a166-4567ad398324"/>
-				<textElement>
-					<font fontName="Helvetica" size="9"/>
-				</textElement>
+				<reportElement x="90" y="70" width="445" height="12" uuid="1b43ce27-3b84-4f14-a166-4567ad398324"/>
+				<textElement><font fontName="Helvetica" size="9"/></textElement>
 				<textFieldExpression><![CDATA[$F{tanggal}]]></textFieldExpression>
 			</textField>
-			<line>
-				<reportElement x="0" y="58" width="535" height="1" uuid="0319281e-0b14-4fe1-bfa1-16dd250ada9e"/>
-				<graphicElement>
-					<pen lineWidth="0.5"/>
-				</graphicElement>
-			</line>
+
 			<textField>
-				<reportElement x="0" y="65" width="267" height="12" uuid="79cca5b3-99ba-4eb3-9385-ff3a58ad7d70"/>
-				<textElement>
-					<font fontName="Helvetica" size="9" isBold="true"/>
-				</textElement>
+				<reportElement x="0" y="85" width="80" height="12" uuid="228f3b50-230a-46c5-b4d2-732664a814ce"/>
+				<textElement><font fontName="Helvetica" size="9"/></textElement>
+				<textFieldExpression><![CDATA["Estimasi Kirim"]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="80" y="85" width="10" height="12" uuid="17e3d255-107e-497a-a9cf-379d0357585e"/>
+				<textElement><font fontName="Helvetica" size="9"/></textElement>
+				<textFieldExpression><![CDATA[":"]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="90" y="85" width="445" height="12" uuid="e689a7f1-ec6c-4f37-9080-9eeb70659617"/>
+				<textElement><font fontName="Helvetica" size="9"/></textElement>
+				<textFieldExpression><![CDATA[$F{expected_delivery} != null && !$F{expected_delivery}.equals("") ? $F{expected_delivery} : "-"]]></textFieldExpression>
+			</textField>
+
+			<line>
+				<reportElement x="0" y="103" width="535" height="1" uuid="0319281e-0b14-4fe1-bfa1-16dd250ada9e"/>
+				<graphicElement><pen lineWidth="0.5"/></graphicElement>
+			</line>
+
+			<!-- SUPPLIER -->
+			<textField>
+				<reportElement x="0" y="110" width="267" height="12" uuid="79cca5b3-99ba-4eb3-9385-ff3a58ad7d70"/>
+				<textElement><font fontName="Helvetica" size="9" isBold="true"/></textElement>
 				<textFieldExpression><![CDATA["SUPPLIER"]]></textFieldExpression>
 			</textField>
 			<textField>
-				<reportElement x="270" y="65" width="265" height="12" uuid="9a8cf194-f530-46be-93f6-68ad145563ff"/>
-				<textElement>
-					<font fontName="Helvetica" size="9" isBold="true"/>
-				</textElement>
-				<textFieldExpression><![CDATA["SHIP TO"]]></textFieldExpression>
-			</textField>
-			<textField>
-				<reportElement x="0" y="80" width="267" height="12" uuid="87bb0c57-da1f-4592-bb1b-27a87d41e455"/>
-				<textElement>
-					<font fontName="Helvetica" size="9"/>
-				</textElement>
+				<reportElement x="0" y="125" width="267" height="12" uuid="87bb0c57-da1f-4592-bb1b-27a87d41e455"/>
+				<textElement><font fontName="Helvetica" size="9"/></textElement>
 				<textFieldExpression><![CDATA[$F{supplier}]]></textFieldExpression>
 			</textField>
-			<textField>
-				<reportElement x="270" y="80" width="265" height="12" uuid="1e78a809-1aa5-4fd9-9797-97f03ac541dd"/>
-				<textElement>
-					<font fontName="Helvetica" size="9"/>
-				</textElement>
-				<textFieldExpression><![CDATA[$F{store}]]></textFieldExpression>
-			</textField>
-			<textField>
-				<reportElement x="0" y="95" width="267" height="12" uuid="15a4e76c-d92c-4d90-a832-d4b90d07c163"/>
-				<textElement>
-					<font fontName="Helvetica" size="8"/>
-				</textElement>
+			<textField textAdjust="StretchHeight">
+				<reportElement x="0" y="140" width="267" height="24" uuid="15a4e76c-d92c-4d90-a832-d4b90d07c163"/>
+				<textElement><font fontName="Helvetica" size="8"/></textElement>
 				<textFieldExpression><![CDATA[$F{alamat}]]></textFieldExpression>
 			</textField>
 			<textField>
-				<reportElement x="0" y="110" width="267" height="12" uuid="c1ac9a2e-9347-4f40-a7cd-d4dbd7bc14a9"/>
-				<textElement>
-					<font fontName="Helvetica" size="8"/>
-				</textElement>
+				<reportElement x="0" y="166" width="267" height="12" uuid="c1ac9a2e-9347-4f40-a7cd-d4dbd7bc14a9"/>
+				<textElement><font fontName="Helvetica" size="8"/></textElement>
 				<textFieldExpression><![CDATA["Telp: " + $F{telp}]]></textFieldExpression>
 			</textField>
 			<textField>
-				<reportElement x="0" y="125" width="267" height="12" uuid="188a980b-f758-4e5c-ad50-ed898461e60a"/>
-				<textElement>
-					<font fontName="Helvetica" size="8"/>
-				</textElement>
-				<textFieldExpression><![CDATA["Email: " + $F{email}]]></textFieldExpression>
+				<reportElement x="0" y="178" width="267" height="12" uuid="188a980b-f758-4e5c-ad50-ed898461e60a"/>
+				<textElement><font fontName="Helvetica" size="8"/></textElement>
+				<textFieldExpression><![CDATA["Email: " + ($F{email} != null ? $F{email} : "-")]]></textFieldExpression>
 			</textField>
+
+			<!-- SHIP TO -->
+			<textField>
+				<reportElement x="270" y="110" width="265" height="12" uuid="9a8cf194-f530-46be-93f6-68ad145563ff"/>
+				<textElement><font fontName="Helvetica" size="9" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA["SHIP TO"]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="270" y="125" width="265" height="12" uuid="1e78a809-1aa5-4fd9-9797-97f03ac541dd"/>
+				<textElement><font fontName="Helvetica" size="9"/></textElement>
+				<textFieldExpression><![CDATA[$F{store}]]></textFieldExpression>
+			</textField>
+			<textField textAdjust="StretchHeight">
+				<reportElement x="270" y="140" width="265" height="24" uuid="6a1f2c9e-3d4b-4e5a-9c8d-1f2e3a4b5c6d"/>
+				<textElement><font fontName="Helvetica" size="8"/></textElement>
+				<textFieldExpression><![CDATA[$F{store_address} != null ? $F{store_address} : ""]]></textFieldExpression>
+			</textField>
+
 			<line>
-				<reportElement x="0" y="143" width="535" height="1" uuid="ad49cd0f-4429-401d-8db3-4295e5c7df18"/>
-				<graphicElement>
-					<pen lineWidth="0.5"/>
-				</graphicElement>
+				<reportElement x="0" y="195" width="535" height="1" uuid="ad49cd0f-4429-401d-8db3-4295e5c7df18"/>
+				<graphicElement><pen lineWidth="0.5"/></graphicElement>
 			</line>
 		</band>
 	</title>
@@ -249,7 +268,7 @@
 					<bottomPen lineWidth="0.5"/>
 					<rightPen lineWidth="0.5"/>
 				</box>
-				<textElement textAlignment="Center" verticalAlignment="Top">
+				<textElement textAlignment="Center" verticalAlignment="Middle">
 					<font fontName="Helvetica" size="8"/>
 				</textElement>
 				<textFieldExpression><![CDATA[$V{REPORT_COUNT}]]></textFieldExpression>
@@ -263,7 +282,7 @@
 					<bottomPen lineWidth="0.5"/>
 					<rightPen lineWidth="0.5"/>
 				</box>
-				<textElement textAlignment="Center" verticalAlignment="Bottom">
+				<textElement textAlignment="Left" verticalAlignment="Middle">
 					<font fontName="Helvetica" size="8"/>
 				</textElement>
 				<textFieldExpression><![CDATA[$F{namaItem}]]></textFieldExpression>
@@ -277,7 +296,7 @@
 					<bottomPen lineWidth="0.5"/>
 					<rightPen lineWidth="0.5"/>
 				</box>
-				<textElement textAlignment="Center" verticalAlignment="Bottom">
+				<textElement textAlignment="Center" verticalAlignment="Middle">
 					<font fontName="Helvetica" size="8"/>
 				</textElement>
 				<textFieldExpression><![CDATA[$F{qty}]]></textFieldExpression>
@@ -291,7 +310,7 @@
 					<bottomPen lineWidth="0.5"/>
 					<rightPen lineWidth="0.5"/>
 				</box>
-				<textElement textAlignment="Center" verticalAlignment="Top">
+				<textElement textAlignment="Center" verticalAlignment="Middle">
 					<font fontName="Helvetica" size="8"/>
 				</textElement>
 				<textFieldExpression><![CDATA[$F{sat}]]></textFieldExpression>
@@ -305,7 +324,7 @@
 					<bottomPen lineWidth="0.5"/>
 					<rightPen lineWidth="0.5"/>
 				</box>
-				<textElement textAlignment="Right" verticalAlignment="Top">
+				<textElement textAlignment="Right" verticalAlignment="Middle">
 					<font fontName="Helvetica" size="8"/>
 				</textElement>
 				<textFieldExpression><![CDATA[$F{harga}]]></textFieldExpression>
@@ -319,7 +338,7 @@
 					<bottomPen lineWidth="0.5"/>
 					<rightPen lineWidth="0.5"/>
 				</box>
-				<textElement textAlignment="Right" verticalAlignment="Top">
+				<textElement textAlignment="Right" verticalAlignment="Middle">
 					<font fontName="Helvetica" size="8"/>
 				</textElement>
 				<textFieldExpression><![CDATA[$F{total}]]></textFieldExpression>
@@ -349,7 +368,7 @@
 				</graphicElement>
 			</line>
 			<textField>
-				<reportElement x="0" y="140" width="200" height="12" uuid="d20cd376-2b30-451b-8621-285d137834a2"/>
+				<reportElement x="0" y="170" width="200" height="12" uuid="d20cd376-2b30-451b-8621-285d137834a2"/>
 				<textElement textAlignment="Center">
 					<font fontName="Helvetica" size="8"/>
 				</textElement>

@@ -80,15 +80,15 @@ func (s *PurchaseOrderQueryService) GetByID(ctx context.Context, id string) (*ro
 			p.po_number,
 			p.reference_no,
 			p.supplier_id,
-			p.supplier_name as supplier_name_snapshot,
-			p.supplier_code as supplier_code_snapshot,
-			p.supplier_address as supplier_address_snapshot,
+			COALESCE(NULLIF(p.supplier_name, ''), s.name, '') as supplier_name,
+			COALESCE(NULLIF(p.supplier_code, ''), s.code, '') as supplier_code,
+			COALESCE(NULLIF(p.supplier_address, ''), s.address, '') as supplier_address,
 			p.store_id,
-			p.store_code as store_code_snapshot,
-			p.store_name as store_name_snapshot,
-			p.store_address as store_address_snapshot,
+			COALESCE(NULLIF(p.store_code, ''), st.code, '') as store_code,
+			COALESCE(NULLIF(p.store_name, ''), st.name, '') as store_name,
+			COALESCE(NULLIF(p.store_address, ''), st.address, '') as store_address,
 			p.warehouse_id,
-			p.warehouse_name as warehouse_name_snapshot,
+			COALESCE(NULLIF(p.warehouse_name, ''), w.name, '') as warehouse_name,
 			p.order_date,
 			p.expected_delivery,
 			p.payment_term_days,
@@ -105,6 +105,9 @@ func (s *PurchaseOrderQueryService) GetByID(ctx context.Context, id string) (*ro
 			p.created_at,
 			p.updated_at
 		`).
+		Joins("LEFT JOIN suppliers s ON s.id = p.supplier_id").
+		Joins("LEFT JOIN store st ON st.id = p.store_id").
+		Joins("LEFT JOIN warehouse w ON w.id = p.warehouse_id").
 		Where("p.id = ? AND p.deleted_at IS NULL", id).
 		First(&detail).Error
 
@@ -123,10 +126,10 @@ func (s *PurchaseOrderQueryService) GetByID(ctx context.Context, id string) (*ro
 			i.purchase_order_id,
 			i.seq_no,
 			i.product_id,
-			i.product_sku,
-			i.product_name,
+			COALESCE(NULLIF(i.product_sku, ''), pr.sku, '') as product_sku,
+			CONCAT(COALESCE(NULLIF(i.product_name, ''), pr.name, ''), IF(pr.variant IS NOT NULL AND pr.variant != '', CONCAT(' - ', pr.variant), '')) as product_name,
 			i.uom_id,
-			i.uom_name,
+			COALESCE(NULLIF(i.uom_name, ''), u.name, '') as uom_name,
 			i.qty_ordered,
 			i.qty_received,
 			i.unit_price,
@@ -135,6 +138,8 @@ func (s *PurchaseOrderQueryService) GetByID(ctx context.Context, id string) (*ro
 			i.planning_id,
 			i.notes
 		`).
+		Joins("LEFT JOIN products pr ON pr.id = i.product_id").
+		Joins("LEFT JOIN uom u ON u.id = i.uom_id").
 		Where("i.purchase_order_id = ? AND i.deleted_at IS NULL", id).
 		Order("i.seq_no ASC").
 		Find(&items).Error
@@ -157,15 +162,15 @@ func (s *PurchaseOrderQueryService) GetByPONumber(ctx context.Context, poNum str
 			p.po_number,
 			p.reference_no,
 			p.supplier_id,
-			p.supplier_name as supplier_name_snapshot,
-			p.supplier_code as supplier_code_snapshot,
-			p.supplier_address as supplier_address_snapshot,
+			COALESCE(NULLIF(p.supplier_name, ''), s.name, '') as supplier_name,
+			COALESCE(NULLIF(p.supplier_code, ''), s.code, '') as supplier_code,
+			COALESCE(NULLIF(p.supplier_address, ''), s.address, '') as supplier_address,
 			p.store_id,
-			p.store_code as store_code_snapshot,
-			p.store_name as store_name_snapshot,
-			p.store_address as store_address_snapshot,
+			COALESCE(NULLIF(p.store_code, ''), st.code, '') as store_code,
+			COALESCE(NULLIF(p.store_name, ''), st.name, '') as store_name,
+			COALESCE(NULLIF(p.store_address, ''), st.address, '') as store_address,
 			p.warehouse_id,
-			p.warehouse_name as warehouse_name_snapshot,
+			COALESCE(NULLIF(p.warehouse_name, ''), w.name, '') as warehouse_name,
 			p.order_date,
 			p.expected_delivery,
 			p.payment_term_days,
@@ -182,6 +187,9 @@ func (s *PurchaseOrderQueryService) GetByPONumber(ctx context.Context, poNum str
 			p.created_at,
 			p.updated_at
 		`).
+		Joins("LEFT JOIN suppliers s ON s.id = p.supplier_id").
+		Joins("LEFT JOIN stores st ON st.id = p.store_id").
+		Joins("LEFT JOIN warehouses w ON w.id = p.warehouse_id").
 		Where("p.po_number = ? AND p.deleted_at IS NULL", poNum).
 		First(&detail).Error
 
@@ -200,10 +208,10 @@ func (s *PurchaseOrderQueryService) GetByPONumber(ctx context.Context, poNum str
 			i.purchase_order_id,
 			i.seq_no,
 			i.product_id,
-			i.product_sku,
-			i.product_name,
+			COALESCE(NULLIF(i.product_sku, ''), pr.sku, '') as product_sku,
+			COALESCE(NULLIF(i.product_name, ''), pr.name, '') as product_name,
 			i.uom_id,
-			i.uom_name,
+			COALESCE(NULLIF(i.uom_name, ''), u.name, '') as uom_name,
 			i.qty_ordered,
 			i.qty_received,
 			i.unit_price,
@@ -212,6 +220,8 @@ func (s *PurchaseOrderQueryService) GetByPONumber(ctx context.Context, poNum str
 			i.planning_id,
 			i.notes
 		`).
+		Joins("LEFT JOIN products pr ON pr.id = i.product_id").
+		Joins("LEFT JOIN uoms u ON u.id = i.uom_id").
 		Where("i.purchase_order_id = ? AND i.deleted_at IS NULL", detail.ID).
 		Order("i.seq_no ASC").
 		Find(&items).Error

@@ -120,3 +120,56 @@ func (s *ProductQueryService) GetProductSuppliers(ctx context.Context, productID
 		Find(&rows).Error
 	return rows, err
 }
+
+func (s *ProductQueryService) GetProductsBySupplier(ctx context.Context, supplierID string) ([]row.ProductSupplierOptionRow, error) {
+	var rows []row.ProductSupplierOptionRow
+	err := s.db.WithContext(ctx).
+		Table("products p").
+		Select(`
+			p.id,
+			p.sku,
+			p.name,
+			p.base_uom_id,
+			(CASE WHEN ps.id IS NOT NULL THEN true ELSE false END) as is_contracted,
+			COALESCE(ps.offered_price, 0) as offered_price,
+			ps.purchase_uom_id,
+			COALESCE(ps.min_order_qty, 0) as min_order_qty
+		`).
+		Joins("LEFT JOIN product_suppliers ps ON ps.product_id = p.id AND ps.supplier_id = ? AND ps.deleted_at IS NULL", supplierID).
+		Where("p.deleted_at IS NULL").
+		Order("is_contracted DESC, p.name ASC").
+		Find(&rows).Error
+	return rows, err
+}
+
+func (s *ProductQueryService) GetProductsBySupplierWithPagination(
+	ctx context.Context,
+	supplierID string,
+	param *params.MetaRequest,
+) ([]row.ProductSupplierOptionRow, *entity.Meta, error) {
+
+	allowedOrder := []string{"is_contracted", "name", "sku"}
+	searchColumns := []string{"p.sku", "p.name", "p.barcode"}
+
+	if param.OrderColumn == "" {
+		param.OrderColumn = "is_contracted"
+		param.OrderDir = "desc"
+	}
+
+	baseQuery := s.db.WithContext(ctx).
+		Table("products p").
+		Select(`
+			p.id,
+			p.sku,
+			p.name,
+			p.base_uom_id,
+			(CASE WHEN ps.id IS NOT NULL THEN true ELSE false END) as is_contracted,
+			COALESCE(ps.offered_price, 0) as offered_price,
+			ps.purchase_uom_id,
+			COALESCE(ps.min_order_qty, 0) as min_order_qty
+		`).
+		Joins("LEFT JOIN product_suppliers ps ON ps.product_id = p.id AND ps.supplier_id = ? AND ps.deleted_at IS NULL", supplierID).
+		Where("p.deleted_at IS NULL")
+
+	return PaginateAndFilter[row.ProductSupplierOptionRow](s.db, baseQuery, param, allowedOrder, searchColumns)
+}

@@ -24,6 +24,9 @@ type PurchaseOrderPlanningResponse struct {
 	LeadTimeDemand      float64   `json:"lead_time_demand"`
 	Status              string    `json:"status"`
 	RecommendedOrderQty float64   `json:"recommended_order_qty"`
+	OrderQty            float64   `json:"order_qty"`
+	IsManualSupplier    bool      `json:"is_manual_supplier"`
+	IsSelected          bool      `json:"is_selected"`
 	CalculatedDate      time.Time `json:"calculated_date"`
 	ProcessedDate       *time.Time `json:"processed_date,omitempty"`
 	ProcessedByID       *uuid.UUID `json:"processed_by_id,omitempty"`
@@ -36,9 +39,21 @@ type PlanningSummaryResponse struct {
 }
 
 type ApprovePlanningRequest struct {
-	ProductIDs      []uuid.UUID `json:"product_ids" validate:"required"`
-	OrderQuantities []float64   `json:"order_quantities" validate:"required"`
-	ProcessedByID  uuid.UUID  `json:"processed_by_id" validate:"required"`
+	ProductIDs         []uuid.UUID `json:"product_ids" validate:"required"`
+	OrderQuantities    []float64   `json:"order_quantities" validate:"required"`
+	ProductSupplierIDs []string    `json:"product_supplier_ids"` // Optional overrides for supplier
+	ProcessedByID      uuid.UUID   `json:"processed_by_id"`
+}
+
+type UpdatePlanningRequest struct {
+	OrderQty          *float64 `json:"order_qty"`
+	ProductSupplierID *string  `json:"product_supplier_id"`
+	IsSelected        *bool    `json:"is_selected"`
+}
+
+type BulkSelectPlanningRequest struct {
+	IDs        []uuid.UUID `json:"ids" validate:"required"`
+	IsSelected bool        `json:"is_selected"`
 }
 
 type CalculatePlanningRequest struct {

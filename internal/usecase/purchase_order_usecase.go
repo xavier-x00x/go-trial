@@ -32,6 +32,8 @@ type PurchaseOrderUseCase interface {
 	GetAllWithPagination(ctx context.Context, meta *dto.MetaRequest) ([]dto.PurchaseOrderListResponse, *entity.Meta, error)
 	Submit(ctx context.Context, userID string, id string) error
 	Approve(ctx context.Context, userID string, id string) error
+	BatchSubmit(ctx context.Context, userID string, req dto.BatchSubmitPORequest) (*dto.BatchOperationResultResponse, error)
+	BatchApprove(ctx context.Context, userID string, req dto.BatchApprovePORequest) (*dto.BatchOperationResultResponse, error)
 	Update(ctx context.Context, userID string, id string, req dto.UpdatePurchaseOrderRequest) (*dto.PurchaseOrderDetailResponse, error)
 	Cancel(ctx context.Context, userID string, id string, reason string) error
 	Resend(ctx context.Context, id string) error
@@ -158,6 +160,13 @@ func (u *purchaseOrderUseCaseImpl) Create(ctx context.Context, userID string, re
 
 		totalAmount = totalAmount.Add(lineSubtotal)
 
+		var prodName, prodSKU string
+		prod, errP := u.productRepo.FindByID(ctx, item.ProductID.String())
+		if errP == nil && prod != nil {
+			prodName = prod.Name
+			prodSKU = prod.SKU
+		}
+
 		items[i] = entity.PurchaseOrderItem{
 			SeqNo:             i + 1,
 			ProductID:         item.ProductID,
@@ -168,6 +177,8 @@ func (u *purchaseOrderUseCaseImpl) Create(ctx context.Context, userID string, re
 			ProductSupplierID: item.ProductSupplierID,
 			PlanningID:        item.PlanningID,
 			Notes:             item.Notes,
+			ProductName:       prodName,
+			ProductSKU:        prodSKU,
 		}
 	}
 
@@ -201,8 +212,11 @@ func (u *purchaseOrderUseCaseImpl) Create(ctx context.Context, userID string, re
 		return nil, err
 	}
 
-	for i := range items {
-		items[i].PurchaseOrderID = po.ID
+	for i := range po.Items {
+		po.Items[i].PurchaseOrderID = po.ID
+		if err := po.Items[i].GenerateID(); err != nil {
+			return nil, err
+		}
 	}
 
 	txCtx, err := u.uow.Begin(ctx)
@@ -221,6 +235,11 @@ func (u *purchaseOrderUseCaseImpl) Create(ctx context.Context, userID string, re
 
 	if err := u.uow.Commit(txCtx); err != nil {
 		return nil, err
+	}
+
+	createdPO, err := u.repo.FindByID(ctx, po.ID.String())
+	if err == nil && createdPO != nil {
+		return toPODetailResponse(createdPO), nil
 	}
 
 	return toPODetailResponse(po), nil
@@ -281,7 +300,7 @@ func (u *purchaseOrderUseCaseImpl) CreateFromPlanning(ctx context.Context, userI
 			supplierID = ps.SupplierID
 		}
 
-		qty := plan.RecommendedOrderQty
+		qty := plan.OrderQty
 		unitPrice := ps.OfferedPrice
 		lineSubtotal := qty.Mul(unitPrice)
 
@@ -505,7 +524,7 @@ func (u *purchaseOrderUseCaseImpl) BulkCreateFromApprovedPlanning(ctx context.Co
 
 		seqCount[supplierKey]++
 
-		qty := plan.RecommendedOrderQty
+		qty := plan.OrderQty
 		unitPrice := ps.OfferedPrice
 		lineSubtotal := qty.Mul(unitPrice)
 
@@ -591,6 +610,9 @@ func (u *purchaseOrderUseCaseImpl) BulkCreateFromApprovedPlanning(ctx context.Co
 
 		for i := range group.Items {
 			group.Items[i].PurchaseOrderID = po.ID
+			if err := group.Items[i].GenerateID(); err != nil {
+				return nil, err
+			}
 		}
 
 		po.Items = group.Items
@@ -923,6 +945,9 @@ func toPOListResponses(pos []entity.PurchaseOrder) []dto.PurchaseOrderListRespon
 }
 
 func toPODetailResponse(po *entity.PurchaseOrder) *dto.PurchaseOrderDetailResponse {
+	if po == nil {
+		return nil
+	}
 	items := make([]dto.PurchaseOrderItemResponse, len(po.Items))
 	for i, item := range po.Items {
 		items[i] = dto.PurchaseOrderItemResponse{
@@ -985,4 +1010,38 @@ func toPODetailResponse(po *entity.PurchaseOrder) *dto.PurchaseOrderDetailRespon
 		UpdatedAt:               po.UpdatedAt,
 		Items:                   items,
 	}
+}
+
+func (u *purchaseOrderUseCaseImpl) BatchSubmit(ctx context.Context, userID string, req dto.BatchSubmitPORequest) (*dto.BatchOperationResultResponse, error) {
+	res := &dto.BatchOperationResultResponse{
+		Total: len(req.IDs),
+	}
+	for _, id := range req.IDs {
+		err := u.Submit(ctx, userID, id.String())
+		if err != nil {
+			res.Failed++
+			res.FailedIDs = append(res.FailedIDs, id.String())
+			res.ErrorMsgs = append(res.ErrorMsgs, fmt.Sprintf("PO %s: %v", id.String(), err))
+		} else {
+			res.Success++
+		}
+	}
+	return res, nil
+}
+
+func (u *purchaseOrderUseCaseImpl) BatchApprove(ctx context.Context, userID string, req dto.BatchApprovePORequest) (*dto.BatchOperationResultResponse, error) {
+	res := &dto.BatchOperationResultResponse{
+		Total: len(req.IDs),
+	}
+	for _, id := range req.IDs {
+		err := u.Approve(ctx, userID, id.String())
+		if err != nil {
+			res.Failed++
+			res.FailedIDs = append(res.FailedIDs, id.String())
+			res.ErrorMsgs = append(res.ErrorMsgs, fmt.Sprintf("PO %s: %v", id.String(), err))
+		} else {
+			res.Success++
+		}
+	}
+	return res, nil
 }

@@ -26,7 +26,7 @@ func NewPurchaseOrderHandler(uc usecase.PurchaseOrderUseCase, qs *service.Purcha
 
 func getUserIDFromPOContext(c *fiber.Ctx) string {
 	claims, ok := c.Locals("claims").(*jwt.Claims)
-	if !ok {
+	if !ok || claims == nil {
 		return ""
 	}
 	return claims.UserID
@@ -137,6 +137,38 @@ func (h *PurchaseOrderHandler) Approve(c *fiber.Ctx) error {
 		return response.Error(c, fiber.StatusInternalServerError, err.Error())
 	}
 	return response.Success(c, fiber.StatusOK, "Purchase order approved successfully", nil)
+}
+
+func (h *PurchaseOrderHandler) BatchSubmit(c *fiber.Ctx) error {
+	var req dto.BatchSubmitPORequest
+	if err := c.BodyParser(&req); err != nil {
+		return response.Error(c, fiber.StatusBadRequest, "Invalid request body")
+	}
+	if errs := h.v.Validate(req); len(errs) > 0 {
+		return response.ValidationError(c, "Validation failed", errs)
+	}
+	userID := getUserIDFromPOContext(c)
+	result, err := h.uc.BatchSubmit(c.UserContext(), userID, req)
+	if err != nil {
+		return response.Error(c, fiber.StatusInternalServerError, err.Error())
+	}
+	return response.Success(c, fiber.StatusOK, "Batch PO submit operation completed", result)
+}
+
+func (h *PurchaseOrderHandler) BatchApprove(c *fiber.Ctx) error {
+	var req dto.BatchApprovePORequest
+	if err := c.BodyParser(&req); err != nil {
+		return response.Error(c, fiber.StatusBadRequest, "Invalid request body")
+	}
+	if errs := h.v.Validate(req); len(errs) > 0 {
+		return response.ValidationError(c, "Validation failed", errs)
+	}
+	userID := getUserIDFromPOContext(c)
+	result, err := h.uc.BatchApprove(c.UserContext(), userID, req)
+	if err != nil {
+		return response.Error(c, fiber.StatusInternalServerError, err.Error())
+	}
+	return response.Success(c, fiber.StatusOK, "Batch PO approve operation completed", result)
 }
 
 func (h *PurchaseOrderHandler) Cancel(c *fiber.Ctx) error {

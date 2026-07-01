@@ -39,7 +39,7 @@ type CreatePurchaseOrderItemRequest struct {
 	ProductID         uuid.UUID  `json:"product_id" validate:"required"`
 	UOMID             uuid.UUID  `json:"uom_id" validate:"required"`
 	QtyOrdered        float64    `json:"qty_ordered" validate:"required,min=0.0001"`
-	UnitPrice         float64    `json:"unit_price" validate:"required,min=0"`
+	UnitPrice         float64    `json:"unit_price" validate:"min=0"`
 	ProductSupplierID *uuid.UUID `json:"product_supplier_id"`
 	PlanningID        *uuid.UUID `json:"planning_id"`
 	Notes             *string    `json:"notes"`
@@ -68,8 +68,24 @@ type CancelPORequest struct {
 }
 
 type BulkCreatePOFromPlanningRequest struct {
-	StoreID      uuid.UUID `json:"store_id" validate:"required"`
-	WarehouseID  uuid.UUID `json:"warehouse_id" validate:"required"`
+	StoreID     uuid.UUID `json:"store_id" validate:"required"`
+	WarehouseID uuid.UUID `json:"warehouse_id" validate:"required"`
+}
+
+type BatchSubmitPORequest struct {
+	IDs []uuid.UUID `json:"ids" validate:"required,min=1"`
+}
+
+type BatchApprovePORequest struct {
+	IDs []uuid.UUID `json:"ids" validate:"required,min=1"`
+}
+
+type BatchOperationResultResponse struct {
+	Total     int      `json:"total"`
+	Success   int      `json:"success"`
+	Failed    int      `json:"failed"`
+	FailedIDs []string `json:"failed_ids,omitempty"`
+	ErrorMsgs []string `json:"error_msgs,omitempty"`
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

@@ -27,3 +27,14 @@ type ProductListRow struct {
 type ProductDetailRow struct {
 	ProductListRow
 }
+
+type ProductSupplierOptionRow struct {
+	ID            string  `json:"id" gorm:"column:id"`
+	SKU           string  `json:"sku" gorm:"column:sku"`
+	Name          string  `json:"name" gorm:"column:name"`
+	BaseUOMID     string  `json:"base_uom_id" gorm:"column:base_uom_id"`
+	IsContracted  bool    `json:"is_contracted" gorm:"column:is_contracted"`
+	OfferedPrice  float64 `json:"offered_price" gorm:"column:offered_price"`
+	PurchaseUOMID *string `json:"purchase_uom_id" gorm:"column:purchase_uom_id"`
+	MinOrderQty   float64 `json:"min_order_qty" gorm:"column:min_order_qty"`
+}

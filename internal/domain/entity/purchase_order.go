@@ -67,7 +67,7 @@ type PurchaseOrder struct {
 	PaymentMode     string `gorm:"type:varchar(20);default:'TRANSFER'" json:"payment_mode"` // Cara bayar: CASH, TRANSFER, GIRO
 
 	// ── Nilai Transaksi ──────────────────────────────────────────────────
-	TotalAmount decimal.Decimal `gorm:"type:decimal(19,4);default:0" json:"total_amount"` // Total nilai pesanan (Qty * UnitPrice)
+	TotalAmount decimal.Decimal `gorm:"type:decimal(19,2);default:0" json:"total_amount"` // Total nilai pesanan (Qty * UnitPrice)
 
 	// ── Status & Tracking ────────────────────────────────────────────────
 	Status       string     `gorm:"type:varchar(20);not null;default:'DRAFT';index" json:"status"`
@@ -122,12 +122,12 @@ type PurchaseOrderItem struct {
 	UOM       UOM       `gorm:"foreignKey:UOMID" json:"uom,omitempty"`
 
 	// ── Kuantitas ────────────────────────────────────────────────────────
-	QtyOrdered  decimal.Decimal `gorm:"type:decimal(15,4);not null" json:"qty_ordered"`   // Jumlah yang dipesan
-	QtyReceived decimal.Decimal `gorm:"type:decimal(15,4);default:0" json:"qty_received"` // Jumlah yang sudah diterima (denormalisasi, di-update saat Goods Receipt)
+	QtyOrdered  decimal.Decimal `gorm:"type:decimal(15,3);not null" json:"qty_ordered"`   // Jumlah yang dipesan
+	QtyReceived decimal.Decimal `gorm:"type:decimal(15,3);default:0" json:"qty_received"` // Jumlah yang sudah diterima (denormalisasi, di-update saat Goods Receipt)
 
 	// ── Harga & Nilai ────────────────────────────────────────────────────
-	UnitPrice decimal.Decimal `gorm:"type:decimal(19,4);not null" json:"unit_price"` // Harga beli per satuan (gross)
-	Subtotal  decimal.Decimal `gorm:"type:decimal(19,4);not null" json:"subtotal"`   // QtyOrdered × UnitPrice
+	UnitPrice decimal.Decimal `gorm:"type:decimal(19,2);not null" json:"unit_price"` // Harga beli per satuan (gross)
+	Subtotal  decimal.Decimal `gorm:"type:decimal(19,2);not null" json:"subtotal"`   // QtyOrdered × UnitPrice
 
 	// ── Traceability ─────────────────────────────────────────────────────
 	ProductSupplierID *uuid.UUID       `gorm:"type:char(36);index" json:"product_supplier_id"` // Referensi ke kontrak supplier (opsional)

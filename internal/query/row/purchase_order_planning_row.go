@@ -25,6 +25,9 @@ type PurchaseOrderPlanningRow struct {
 	LeadTimeDemand        decimal.Decimal `json:"lead_time_demand" gorm:"column:lead_time_demand"`
 	Status                string          `json:"status" gorm:"column:status"`
 	RecommendedOrderQty   decimal.Decimal `json:"recommended_order_qty" gorm:"column:recommended_order_qty"`
+	OrderQty              decimal.Decimal `json:"order_qty" gorm:"column:order_qty"`
+	IsManualSupplier      bool            `json:"is_manual_supplier" gorm:"column:is_manual_supplier"`
+	IsSelected            bool            `json:"is_selected" gorm:"column:is_selected"`
 	CalculatedDate        time.Time       `json:"calculated_date" gorm:"column:calculated_date"`
 	ProcessedDate         *time.Time      `json:"processed_date,omitempty" gorm:"column:processed_date"`
 	ProcessedByID         *uuid.UUID      `json:"processed_by_id,omitempty" gorm:"column:processed_by_id"`

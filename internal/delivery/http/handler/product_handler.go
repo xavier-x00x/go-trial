@@ -139,3 +139,33 @@ func (h *ProductHandler) GetProductSuppliers(c *fiber.Ctx) error {
 	}
 	return response.Success(c, fiber.StatusOK, "Product suppliers retrieved successfully", resp)
 }
+
+func (h *ProductHandler) GetProductsBySupplier(c *fiber.Ctx) error {
+	supplierID := c.Query("supplier_id")
+	resp, err := h.queryService.GetProductsBySupplier(c.UserContext(), supplierID)
+	if err != nil {
+		return response.Error(c, fiber.StatusInternalServerError, "Failed to get products by supplier")
+	}
+	return response.Success(c, fiber.StatusOK, "Products retrieved successfully", resp)
+}
+
+func (h *ProductHandler) GetProductsBySupplierWithPagination(c *fiber.Ctx) error {
+	supplierID := c.Query("supplier_id")
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	limit, _ := strconv.Atoi(c.Query("limit", "10"))
+
+	metaRequest := &params.MetaRequest{
+		Page:        page,
+		Limit:       limit,
+		Search:      c.Query("search", ""),
+		OrderColumn: c.Query("order_column", ""),
+		OrderDir:    c.Query("order_dir", ""),
+	}
+
+	data, meta, err := h.queryService.GetProductsBySupplierWithPagination(c.UserContext(), supplierID, metaRequest)
+	if err != nil {
+		return response.Error(c, fiber.StatusInternalServerError, "Failed to get products by supplier")
+	}
+
+	return response.SuccessWithMeta(c, fiber.StatusOK, "Products retrieved successfully", data, meta)
+}
